@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form-lets learn</title>
+</head>
+
+<body>
+    <!--form,label,input-->
+    <h1>form to apply for squid game season 3 </h1>
+    <form action="post">
+        <div>
+            <label for="username">Enter your username for application</label>
+            <input type="text" id="username" name="username" placeholder="Enter your username" autofocus>
+        </div> <!--or <br>-->
+
+        <div>
+            <input type="radio" id="male" name="gender" value="male">
+            <label for="male">Sigma mega alpha Male</label>
+            <input type="radio" id="female" name="gender" value="female">
+            <label for="female">Female</label>
+        </div>
+
+        <div>
+            <label for="subscribe">subscribed to open letter</label>
+            <input type="checkbox" id="subscribe" name="subscribe" value="yes">
+        </div>
+
+        <div>
+            <label for="comment">Enter your comment..</label>
+            <br> <!-- not recommended-->
+            <textarea name="comment" rows="12" cols="50" id="comment"></textarea>
+        </div>
+
+        <!--selection in form-->
+        <div>
+            <label for="fruits">selected your fav fruit</label>
+            <br>
+            <select name="fruits" id="fruits">
+                <option value="apple">apple</option>
+                <option value="bananna">bananna</option>
+                <option value="dragon fruit">dragon fruit</option>
+            </select>
+        </div>
+
+    </form>
+</body>
+
+</html>
