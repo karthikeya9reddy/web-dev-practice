@@ -26,45 +26,49 @@
             background-color: aqua;
             color: pink;
         }
+
         /* descendant selectors */
-        div p{
+        div p {
             background-color: brown;
         }
+
         /* '*'---> is the universal selector */
-         *{
+        * {
             margin: 0;
             padding: 0;
-         }
-         
-         /* pseudo selector */
-          a:visited{                      /*--> were you visited */
+        }
+
+        /* pseudo selector */
+        a:visited {
+            /*--> were you visited */
             color: red;
-         }
+        }
 
-          a:link{                         /*--> were you didnt visited */
+        a:link {
+            /*--> were you didnt visited */
             color: rgb(6, 162, 40);
-         }
+        }
 
-         a:active{                        /*when you are clicking */
+        a:active {
+            /*when you are clicking */
             background-color: yellow;
-         }
+        }
 
-         a:hover{
+        a:hover {
             background-color: blueviolet;
             color: aqua;
-         }
+        }
 
-         p:first-child{
+        p:first-child {
             background-color: aqua;
-         }
-         
+        }
     </style>
 </head>
 
 <body>
     <div class="one">
-    <p>i am first</p>
-    <p>i am second</p>
+        <p>i am first</p>
+        <p>i am second</p>
     </div>
     <div class="red">
         im a div
@@ -83,3 +87,22 @@
 </body>
 
 </html>
+
+<!-- summary of the video
+
+This video serves as a masterclass on CSS selectors, which are essential tools for targeting HTML elements to apply
+styling. The instructor covers several fundamental types of selectors:
+
+Element Selector: Targets elements by their tag name (e.g., div), though it applies styles to all such elements (02:00).
+Class Selector: Uses a dot notation (.className) to target specific elements assigned a class, offering more control
+(03:24).
+ID Selector: Uses the #idName syntax to target a unique element with a specific ID (04:00).
+Child Selector: Targets an element only if it is a direct child of another element using the > symbol (04:45).
+Descendant Selector: Targets an element nested anywhere inside another (even through multiple parent levels) using a
+space separator (06:28).
+Universal Selector: Denoted by *, it applies styles to every element on the page, often used for resetting margins and
+padding (07:05).
+Pseudo Selectors: Allow styling based on states or positions, such as :hover, :visited, :active, or :first-child (08:02
+- 12:46).
+The instructor emphasizes that mastering these core selectors is fundamental for web development, as they are used in
+the vast majority of real-world website styling. -->
