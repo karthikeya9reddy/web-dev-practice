@@ -6,6 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Squid game application</title>
 </head>
+<style>
+        div:hover{
+        background-color: rgb(205, 200, 200);
+        color: rgb(158, 1, 1);
+    }
+    article:hover{
+        background-color: rgb(82, 83, 81);
+    }
+
+    .submit:hover{
+        background-color: yellow;
+        color: black;
+    }
+
+</style>
 
 <body>
     <header>
@@ -64,13 +79,17 @@
                 <label for="">Enter your contact details:-</label>
                 <br>
                 <br>
+            </div>
+            <article>
                 <label for="number">enter your ph.no: </label>
-                <input type="number" id="number" name="phone number">
+                <input class="num" type="number" id="number" name="phone number">
                 <br>
                 <br>
+            </article>
+            <article>
                 <label for="email">enter your email id: </label>
                 <input type="email" id="email" name="email">
-            </div>
+            </article>
             <br>
             <br>
 
@@ -81,9 +100,7 @@
             </div>
             <br>
 
-            <div>
-                <input type="submit" name="subbmit" value="subbmit">
-            </div>
+                <input class="submit" type="submit" name="subbmit" value="subbmit">
         </form>
     </main>
 </body>
