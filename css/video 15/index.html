@@ -1,28 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=a, initial-scale=1.0">
-    <title>Document</title>
-    <!-- <style>
-        h1{
-            background-color: aqua;
-            color: green;
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fonts</title>
+
+    <!--including exteranl font through link-->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bitcount+Prop+Single:wght@100..900&display=swap"
+        rel="stylesheet">
+    <style>
+
+   /* including exteranl font through import*/ 
+   
+   /* @import url('https://fonts.googleapis.com/css2?family=Bitcount+Prop+Single:wght@100..900&display=swap'); */
+
+        h1 {
+            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana;
+
+             text-transform: uppercase;
+             text-decoration: underline;
+             text-decoration-color: blue;
+             text-decoration-style: wavy;
+             text-decoration-thickness: 4px;
+             text-indent: 45px;
+             text-overflow: ellipsis;
+             text-align: center;
         }
-    </style> -->
-    <link rel="stylesheet" href="style.css">
+
+        p {
+            /* font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; */
+            font-family: "Bitcount Prop Single", system-ui;
+            font-size: 20px;
+            line-height: 40px;
+            word-spacing: 3px;
+            letter-spacing: 3px;
+            /* font-style: normal;
+            font-weight: 500; */
+        }
+
+        h2{
+            text-transform: capitalize;
+        }
+
+        .lorem{
+            border: 2px solid red;
+            /* text-overflow: ellipsis;
+            overflow:hidden; */
+            width: 145px;
+            word-break: break-all;
+        }
+    </style>
 </head>
+
 <body>
-    <!-- <h1 style="background-color: aqua;color: brown;">three ways to add css to html</h1> -->
-     <h1>three ways to add css to html</h1>
     <div>
-        <ol>
-            <li>first way is inline css</li>
-            <li>second way is style</li>
-            <li>third way is external css</li>
-        </ol>
+        <!-- to find out more font types visit the following website -->
+        <!-- https://codepen.io/web-dot-dev/pen/yLojraG -->
+        <h1>Fonts</h1>
+        <h2>about fonts</h2>
+        <p>this is a video on fonts </p>
+        <p class="lorem">Lorem ipsum dolor sit amet consectetur, adipisicing elit. Molestias eligendi delectus eius tenetur. Porro sequi fugit mollitia illum rem modi architecto aperiam, quae in eos laudantium iure laborum eum quibusdam fuga, asperiores explicabo ullam consequatur quos obcaecati doloribus, quasi tenetur aliquam est. Eum, facere numquam.</p>
     </div>
-    <div>im a good boy</div>
-    <p>everyone is good in some way or the others. does this even make any sense</p>
 </body>
+
 </html>
