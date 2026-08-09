@@ -10,13 +10,50 @@
     .box {
         border: 2px solid black;
         padding: 34px;
+        /* syntax for box shadow ---> "box-shadow: h-offset v-offset blur spread color inset;" */
+        box-shadow: 5px 5px 15px 5px #888888;
+
+        /* syntax for text shadow is --->"text-shadow: h-offset v-offset blur color;"   */
+        text-shadow: 2px 2px 4px #888888;
     }
+
+    .boxes{
+        text-shadow: 9px 8px 4px #2364ba;
+
+        /* syntax for outline ---> "outline: width style color" */
+        outline: 2px solid mediumslateblue  ;
+    }
+
+    
 </style>
 
 <body>
     <div class="box">
         im a box
     </div>
+    <p class="boxes">
+       Lorem ipsum dolor sit amet consectetur, adipisicing elit. Numquam, ullam? In eaque velit vero exercitationem voluptatem pariatur! In molestias obcaecati laboriosam et voluptatem error sed ab nemo magni maiores ex temporibus quas architecto quibusdam magnam enim velit qui illo, cum at ratione commodi. Est, doloremque. 
+    </p>
 </body>
 
 </html>
+
+summary of the video 
+
+Shadows (0:37)
+The video covers two main types of shadows:
+
+Box Shadows (0:52): 
+
+Used to add depth to container elements. The syntax includes horizontal/vertical offsets, blur radius, spread, color, and an optional inset property to place the shadow inside the box. The narrator recommends using the browser's Inspect tool to dynamically adjust these values.
+
+Text Shadows (5:16): A similar property used to add depth or decorative effects to text elements.
+
+Outlines (8:13)
+
+Outlines are used to draw a line around elements, similar to borders, but with key differences:
+
+Space: Unlike borders, outlines do not take up space in the box model and do not affect the layout of surrounding elements.
+Offset: You can use the outline-offset property to create space between the element and the outline.
+
+Flexibility: Outlines cannot have varying widths on different sides like borders can, and they automatically follow the shape defined by border-radius.
