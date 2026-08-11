@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        :root{
+            --color:yellow;
+            --seccolor:pink;
+            --thircolor:purple;
+            --background-color: white;
+            --padding: 30px;
+        }
+        body{
+            background-color: wheat;
+        }
+        .nav{
+            background-color: var(--background-color);
+        }
+        ul{
+             display: flex;
+            list-style: none;
+        }
+        ul li:nth-child(1){
+            border: 2px solid var(--thircolor);
+            padding: var(--padding);
+            background-color: var(--color);
+        }
+
+        ul li:nth-child(2){
+            border: 2px solid var(--seccolor);
+            padding: var(--padding);
+            background-color: var(--thircolor);
+        }
+
+        ul li:nth-child(3){
+            border: 2px solid var(--color);
+            padding: var(--padding);
+            background-color: var(--seccolor);
+        }
+
+        .content{
+            color: var(--thircolor);
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <nav>
+            <ul>
+                <li>Home</li>
+                <li>About</li>
+                <li>Contact</li>
+            </ul>
+        </nav>
+    </div>
+    <div class="content">
+        Lorem ipsum dolor sit amet consectetur adipisicing elit. Minima, fugiat ducimus ex autem voluptates accusantium praesentium ratione sapiente quod ipsum, facere illum! Illum nesciunt, sequi non vitae ut tenetur porro perferendis quae laudantium, nobis dolore inventore explicabo sed? Facere porro a quam obcaecati quaerat sit.
+    </div>
+</body>
+</html>
