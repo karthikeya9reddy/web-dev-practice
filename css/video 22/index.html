@@ -11,39 +11,58 @@
             padding: 0;
         }
 
-        .parent{
-            padding: 43px;
-            margin: 34px;
-            border: 2px solid black;
-        }
-
-        .box1{
-            background-color: antiquewhite;
-        }
-
-        .box2{
-            background-color: aqua;
-            position: relative;
-            top: 45px;
-            left: 35px;
-        }
-
-        .box3{
-            background-color: aquamarine;
-        }
-
-        .box4{
-            background-color: pink;
-        }
-
-        .box {
-            height: 133px;
+         .box {
+            height: 433px;
             width: 80vw;
             padding: 3px;
             margin: 3px;
             margin: auto;
             border: 2px solid black;
         }
+
+        .parent{
+            padding: 43px;
+            margin: 34px;
+            border: 2px solid black;
+            /*Exception: transform, filter, or perspctive properties can also make an element as positioned  */
+            /* position: absolute; */
+            /* transform: translate(0); */
+            /* filter: invert(0); */
+            /* perspective: 0em */
+        }
+
+        .box1{
+            background-color: antiquewhite;
+            /* position: sticky;
+            top: 0px;
+            height: 111px;
+            width: 100%;
+            margin: 0;
+            padding: 0; */
+            position: absolute;
+            top: 0px;
+            left: 3px;
+        }
+
+        .box2{
+            background-color: aqua;
+            /* position: relative;
+            top: 45px;
+            left: 35px; */
+        }
+
+        .box3{
+            background-color: aquamarine;
+            /* position: fixed;
+            bottom: 400px;
+            left: 8vw;
+            height: 10vh; */
+        }
+
+        .box4{
+            background-color: pink;
+        }
+
     </style>
 </head>
 
@@ -57,3 +76,23 @@
 </body>
 
 </html>
+
+<!-- summary of the video 
+
+Key Concepts Covered:
+
+Static Position (0:39): The default value. Elements follow the normal document flow and ignore top, bottom, left, right, and z-index properties.
+
+Relative Position (4:30): Allows you to shift an element from its original position using top, bottom, left, and right without affecting the layout of surrounding elements. It also enables the use of z-index.
+
+Absolute Position (8:21): Removes an element from the normal document flow. It is positioned relative to its nearest positioned ancestor (an element with position other than static). If no such ancestor exists, it positions relative to the body or html element.
+
+Fixed Position (12:50): Positions an element relative to the viewport (the browser window). The element remains in the same spot even when the page is scrolled.
+
+Sticky Position (15:06): A hybrid between relative and fixed. The element behaves like static until the user scrolls to a specified threshold, at which point it "sticks" in place relative to its parent.
+
+Important Exceptions:
+The video highlights an advanced concept at (19:11): using transform, filter, or perspective properties on a parent element can also make that parent act as a positioning context for its children, even if the parent has position: static. -->
+
+
+
