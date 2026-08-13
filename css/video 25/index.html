@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>css float and clear</title>
+    <style>
+        img{
+            float: left;
+        }
+
+        .cards{
+            border: 2px solid black;
+            display:flow-root
+        }
+        .card{
+            border: 1px solid green;
+        }
+        .card:nth-child(3){
+            background-color: aqua;
+            clear: both;
+
+        }
+    </style>
+</head>
+<body>
+    <div class="cards">
+        <img src="ssh.png" width="230">
+        <div class="card">
+            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Dolor tenetur quam consequatur eos perspiciatis incidunt, alias sit est ipsam asperiores vitae nemo id fugit! Iste?</p>
+        </div>
+        <div class="card">Lorem ipsum dolor sit amet consectetur adipisicing elit. Ipsa omnis libero exercitationem dolor! Possimus magnam totam nostrum ullam, aperiam sit, dolorem ab consequuntur nihil ea quisquam libero architecto odit quos quasi optio accusamus magni impedit pariatur quam quod! Maiores vitae unde magni, ad delectus sint natus? Voluptates repellat, sed at dolores esse ad veritatis qui expedita dolorem incidunt maxime totam quas rem nihil minus nemo deserunt, iusto commodi maiores dolor mollitia magnam quibusdam repudiandae hic. Architecto doloremque soluta repellendus mollitia harum a itaque sequi ducimus omnis ipsa amet illo sapiente voluptatibus aliquam animi dicta consectetur accusamus libero maiores quidem neque, molestiae dolore? Nam ipsum, laboriosam alias magnam ratione quasi quod reprehenderit eligendi, assumenda corporis veniam nobis cum ab perferendis non officiis velit, repellendus provident. Quis, architecto? Maiores quae, fugiat dolores consequatur eius in sequi quos rem culpa cum! Sapiente, tempore. Minus doloribus dolor similique molestiae? Modi fuga ullam qui at inventore error perferendis quod, voluptatem nobis eum recusandae ducimus. Accusamus dicta fugit exercitationem tempora placeat! Cumque necessitatibus impedit ad, totam eius inventore a eos at! Natus, error tempora quas praesentium repellat eius soluta, architecto dolores placeat nam saepe. Vel corporis quos dolores ab, iusto nihil molestias obcaecati, est, nobis adipisci ducimus sequi. Excepturi odit dolores cum unde cupiditate, labore quae ea alias esse temporibus nisi enim minus nulla iusto ipsam nihil illum quos eum itaque accusantium eaque repellat eius praesentium! Ipsam, est. Maxime, praesentium consectetur? Dignissimos, quas praesentium aut rem quod tempore, accusantium corrupti nobis quam modi debitis corporis impedit voluptatibus, harum repellat? Dicta ratione eos quod. Doloribus mollitia quam error minus doloremque illo magnam dignissimos incidunt maxime tempore cumque veritatis ratione odit corrupti praesentium aspernatur ipsa expedita quisquam consequuntur molestias, eligendi alias eum! Unde minus sed ut ipsam perferendis quas pariatur corrupti veniam. Repudiandae natus repellat ea eos error, deleniti dicta officia magni sed at. Dolor facilis temporibus et perspiciatis earum recusandae quasi repudiandae fuga ex excepturi voluptatum reiciendis odit non molestiae, quam ipsum ullam nostrum aut omnis saepe? Ab illum temporibus, beatae earum corporis facilis neque delectus est nihil perferendis laboriosam, reprehenderit dolor harum libero molestiae, sit eaque?</div>
+        <div class="card">card 3</div>
+    </div>
+</body>
+</html>
+ 
+summary of the video 
+
+Key concepts covered:
+
+Float: Originally used for wrapping text around images (1:39), this property allows elements to move to the left or right, letting other content flow around them.
+
+Clear: Used to manage elements that have been floated. By using clear: left, clear: right, or clear: both, you can prevent elements from sitting next to a floated item, effectively forcing them to move below it (4:42-7:45).
+
+Managing Overflows: The video demonstrates using display: flow-root on a container to ensure floated elements are properly contained and do not cause layout issues (3:38).
+
+Important Note:
+The narrator explicitly advises against using float and clear for building modern website layouts (8:35-9:57). While he teaches them so that students can maintain older websites, he recommends using modern alternatives like CSS Grid and Flexbox for all new development projects.
