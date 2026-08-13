@@ -4,10 +4,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>exercise 5</title> 
+    <title>exercise 5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: rgb(244, 216, 164)
+        }
+
+        header {
+            position: sticky;
+            top: 0px;
+            z-index: 10;
+        }
+
+        nav {
+            border: 2px;
+            background-color: orange;
+            color: white;
+            padding: 10px;
+        }
+
+        ul {
+            display: flex;
+            list-style: none;
+        }
+
+        li {
+            text-transform: capitalize;
+            border: 2px;
+            padding: 20px;
+        }
+
+        .parent {
+            border: 2px;
+            width: 90vw;
+            height: 80vh;
+            background-color: greenyellow;
+            margin: auto;
+            position: relative;
+            top: 20px;
+            display: flex;
+        }
+
+        .child1 {
+            border: 2px;
+            border-radius: 10px;
+            width: 40%;
+            height: 70%;
+            background-color: pink;
+            margin: auto;
+        }
+
+        .child2 {
+            border: 2px;
+            border-radius: 10px;
+            width: 40%;
+            height: 70%;
+            background-color: rgb(235, 143, 158);
+            margin: auto;
+        }
+
+        .parent2 {
+            border: 2px;
+            border-radius: 80px;
+            width: 90vw;
+            height: 200px;
+            background-color: aqua;
+            margin: auto;
+            position: relative;
+            top: 100px;
+            text-align: center;
+            font-size: 70px;
+            text-transform: capitalize;
+        }
+        .footer{
+            position: relative;
+            top: 190px;
+            color: grey;
+        }
+        .circle{
+            border: 2px solid black;
+            border-radius: 50px;
+            background-color: yellow;
+            width: 100px;
+            height: 100px;
+            position: fixed;
+            top: 400px;
+            left: 1600px;
+            z-index: 5;
+
+        }
+    </style>
 </head>
+
 <body>
-    
+    <header>
+        <nav>
+            <ul>
+                <li>home</li>
+                <li>about</li>
+                <li>subscriptions</li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <div class="parent">
+            <div class="child1"></div>
+            <div class="child2"></div>
+        </div>
+          </main>
+        <div class="parent2">
+            welcome to this sigma web development express
+        </div>
+        <div class="circle"></div></div>
+        <div class="footer">
+            <footer>
+            created by karthik as taken istructions from harry from exercise 5
+            </footer>
+        </div>
 </body>
 
 </html>
