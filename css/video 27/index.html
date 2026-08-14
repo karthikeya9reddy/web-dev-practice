@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>css flex box</title>
+    <style>
+        .container {
+            border: 2px solid red;
+            display: flex;
+            height: 80vh;
+            /* justify-content: center; */
+            /* there is no justify items in flex box */
+            /* align-content: flex-start; */
+            align-items: center;
+            /* flex-direction: column; */
+            /* flex-direction: column-reverse; */
+            flex-direction: row;
+            /* flex-direction: row-reverse; */
+            flex-wrap: wrap;
+            /* flex-flow: row wrap; */
+            /* gap: 50px; */
+            /* gap: 40px 50px; */
+            /* row-gap: 50px;
+            column-gap: 100px; */
+        }
+
+        .item {
+            height: 82px;
+            width: 82px;
+            border: 2px solid black;
+            margin: 4px;
+            background-color: blueviolet;
+            /* flex-grow: 1; */
+            flex-shrink: 1;
+            /* align-self: flex-start ;  */
+        }
+        .item1{
+            /* flex-grow: 2; */
+            flex-shrink: 2;
+        }
+
+        /* default order is 0 */
+        .order1{
+            order: 1;
+        }
+        .order2{
+            order: 2;
+        }
+        .order3{
+            order: 3;
+        }
+    </style>
+</head>
+ 
+<body>
+    <div class="container">
+        <div class="item order3">1</div>
+        <div class="item">2</div>
+        <div class="item">3</div>
+        <div class="item order1">4</div>
+        <div class="item item1">5</div>
+        <div class="item order2">6</div>
+        <div class="item"></div>
+        <div class="item"></div>
+    </div>
+
+    <div><h1>understandign flex through image</h1>
+    <img src="flex.png" alt=""></div>
+</body>
+
+</html>
+
+<!-- summary of the video 
+
+These properties control the overall layout and alignment of all items within the flex container:
+
+display: flex;: The foundational property that activates the flexbox layout (3:36). 
+
+flex-direction: Determines the orientation of items. Options include row (default), column, row-reverse, and column-reverse (8:05).
+
+justify-content: Aligns items along the main axis. Common values are center, flex-start, flex-end, space-between, and space-around (5:22).
+
+align-items: Aligns items along the cross axis (perpendicular to the main axis). Useful for centering items vertically when using flex-direction: row (5:34).
+
+flex-wrap: Allows items to wrap onto multiple lines if they exceed the container's space, using values like wrap or wrap-reverse (13:41).
+
+align-content: Aligns multiple lines of items when flex-wrap is active (15:11).
+
+gap: Sets the space between flex items. You can also use row-gap and column-gap for more granular control (18:09).
+
+flex-flow: A shorthand property combining flex-direction and flex-wrap (17:19).
+
+
+
+Properties for Flex Items
+These properties are applied to specific items inside the flex container to override default behavior:
+
+order: Changes the visual order of an item. Lower numbers appear first (21:00).
+
+flex-grow: Defines how much an item should grow relative to others to fill available space (23:47).
+
+flex-shrink: Defines how much an item should shrink if there is not enough space (24:54).
+
+align-self: Allows an individual item to ignore the container's align-items setting and define its own alignment on the cross axis (25:59). -->
