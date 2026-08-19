@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>css transform</title>
+    <style>
+        .box {
+            height: 50px;
+            width: 50px;
+            background-color: beige;
+            border: 2px solid black;
+            /* transform: rotate(0.1turn);  (40deg) (0.25turn)
+            transform: rotateX(1deg);
+            transform: rotatey(45deg);
+            transform: rotatez(90deg); */
+
+         /* transform: scale(1); 
+            transform: scalex(3); 
+            transform: scaley(3); 
+            transform: scalez(3); */
+
+         /* transform: skew(40deg);
+            transform: skewx(40deg);
+            transform: skewy(40deg); */
+
+         /* transform: translate(70px); 
+            transform: translatex(70px);
+            transform: translatey(70%) skew(40deg) translate(50%);*/
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100vw;
+            height: 80vh;
+            border: 2px solid green;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="box">box</div>
+    </div>
+</body>
+
+</html>
+
+<!-- summary of the video 
+
+Key CSS Transform Properties
+
+rotate() (01:58): Rotates an element around a fixed point. You can specify angles in degrees (e.g., 45deg) or turns (e.g., 0.25turn). Variants include rotateX(), rotateY(), and rotateZ() to rotate around specific axes.
+
+scale() (04:41): Changes the size of an element. scale(1.5) makes an element 1.5 times larger. You can also target specific axes using scaleX() or scaleY().
+
+skew() (05:17): Distorts an element by stretching it along specific axes. Note that skew() cannot be applied to the Z-axis.
+
+translate() (05:49): Shifts an element's position on the screen. It is frequently used for positioning elements like navigation bars (e.g., sliding them off-screen with translateY(-100%)).
+
+transform-origin (07:35): Defines the point around which a transformation occurs. By default, this is the center (50% 50%), but it can be changed to any coordinate to shift the rotation pivot.
+
+Additional Concepts
+
+Multiple Transformations (06:17): You can apply several transform effects simultaneously by separating them with spaces (e.g., transform: skewX(40deg) translateX(45px);).
+
+3D Context (09:04): While monitors are 2D, these properties can create the illusion of 3D depth, especially when using Z-axis manipulations. -->
