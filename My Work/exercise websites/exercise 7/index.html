@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>exercise 6</title>
+    <style>
+        nav {
+            border: 2px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background-color: rgb(248, 250, 251);
+            height: 90px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .item {
+            border: 2px ;
+            width: 280px;
+            height: 180px;
+            background-color: rgb(235, 231, 231);
+            display: grid;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .body{
+            border: 2px;
+            width: 100vw;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 300px 300px 300px;
+            grid-template-rows:  200px 200px 200px;
+            column-gap: 10px;
+            justify-content: center;
+            align-content: center;
+        }
+
+        .down{
+            border-radius: 15px;
+            background-color: aqua;
+            color: white;
+            padding: 8px;
+        }
+
+        .v2{
+             border-radius: 15px;
+            background-color: rgb(31, 217, 74);
+            color: white;
+            padding: 8px;
+        }
+
+        .lng{
+            font-weight: bolder;
+            display: grid;
+            justify-content: center;
+        }
+
+        .down, .v2{
+            display: inline-block;
+        }
+        
+        .down:hover{
+          transform: scale(1.1);
+            transition: 0.3s;
+        }
+        .v2:hover{
+            transform: scale(1.1);
+            transition: 0.3s;
+        }
+
+        .item:hover{
+            transform: scale(1.1);
+            transition: 0.3s;
+        }
+
+        @media only screen and (max-width: 500px) {
+             .body{
+                grid-template-columns: 300px;
+                justify-content: center;
+                align-items: center;
+                row-gap: 10px;
+                height: auto;
+             }
+         }
+
+         a{
+            color: inherit;
+            text-decoration: none;
+         }
+         
+    </style>
+</head>
+
+<body>
+    <div>
+        <header>
+            <nav>
+                <div class="logo"><img src="ultra.png"></div>
+                <ul>
+                    <li>products</li>
+                    <li>pricing</li>
+                    <li>resources</li>
+                    <li>about us</li>
+                    <li><img src="translate.png"></li>
+                </ul>
+            </nav>
+        </header>
+    </div>
+
+    <main>
+        <div class="body">
+            <div class="item">
+                <div class="lng" >English</div>
+                <div>
+                    <span class="down"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 32-bit</a></span> <span class="v2"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 64-bit</a> </span>
+                </div>
+            </div>
+            <div class="item">
+                <div class="lng" >English</div>
+                <div>
+                    <span class="down"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 32-bit</a></span> <span class="v2"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 64-bit</a> </span>
+                </div>
+            </div>
+            <div class="item">
+                <div class="lng" >English</div>
+                <div>
+                    <span class="down"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 32-bit</a></span> <span class="v2"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 64-bit</a> </span>
+                </div>
+            </div>
+            <div class="item">
+                <div class="lng" >English</div>
+                <div>
+                    <span class="down"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 32-bit</a></span> <span class="v2"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 64-bit</a> </span>
+                </div>
+            </div>
+            <div class="item">
+                <div class="lng" >English</div>
+                <div>
+                    <span class="down"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 32-bit</a></span> <span class="v2"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 64-bit</a> </span>
+                </div>
+            </div>
+            <div class="item">
+                <div class="lng" >English</div>
+                <div>
+                    <span class="down"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 32-bit</a></span> <span class="v2"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 64-bit</a> </span>
+                </div>
+            </div>
+            <div class="item">
+                <div class="lng" >English</div>
+                <div>
+                    <span class="down"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 32-bit</a></span> <span class="v2"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 64-bit</a> </span>
+                </div>
+            </div>
+            <div class="item">
+                <div class="lng" >English</div>
+                <div>
+                    <span class="down"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 32-bit</a></span> <span class="v2"> <a href="tor-browser-windows-x86_64-portable-15.0.3.exe">download 64-bit</a> </span>
+                </div>
+            </div> 
+    </main>
+</body>
+
+</html>
