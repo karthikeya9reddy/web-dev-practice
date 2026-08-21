@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>css animations</title>
+    <style>
+        .container{
+            background-color: rgb(9, 106, 106);
+            height: 80vh;
+            width: 30vw;
+        }
+
+        .box{
+            width: 34px;
+            height: 45px;
+            /* animation-name: karthikkaanimation;
+            animation-duration: 2s;
+            animation-iteration-count: 4;
+            animation-iteration-count: infinite;
+            animation-timing-function: ease-out;
+            animation-delay: 3s;
+            animation-direction: alternate-reverse;
+            animation-play-state: running; 
+            animation: name duration timing-function delay iteration-count direction fill-mode;
+            */
+           /*animation: karthikkaanimation 2s ease-in-out 2s 2  alternate-reverse,  forwards backwards ---> fill mode*/; 
+           animation: karthikkaanimation 2s ease-in-out 2s 2  alternate-reverse;
+           /* ,karthik2 3s ease-in-out 2s 2  alternate-reverse;  */
+        }
+
+        @keyframes karthikkaanimation {
+            from{
+                background-color: yellow;
+            }
+            to{
+                transform: translate(1000px);
+                background-color: red;
+            }
+        }
+
+        @keyframes karthik2 {
+            0%{
+                transform: rotate(100deg);
+            }
+           20%{
+                transform: rotate(200deg);
+           }
+            50%{
+                 transform: rotate(220deg);
+            }
+            80%{
+                 transform: rotate(300deg);
+            }
+            
+            100%{
+                 transform: rotate(310deg);
+            }
+            
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="box">box</div>
+    </div>
+</body>
+</html>
+
+<!-- summary of the video 
+
+Core CSS Animation Properties:
+@keyframes (02:11): Defines the animation sequence. You specify the starting state (from) and the ending state (to), or use percentages (0%, 20%, 50%, etc.) to create complex multi-stage movements.
+
+animation-name (03:03): Links the specific @keyframes rule to an element.
+
+animation-duration (03:29): Sets how long one complete cycle of the animation takes (e.g., 3s).
+
+animation-iteration-count (04:45): Determines how many times the animation repeats.
+You can set a specific number or use infinite to loop forever.
+
+animation-timing-function (05:43): Controls the speed curve of the animation (e.g., ease-in, ease-out, or custom cubic-bezier curves).
+
+animation-delay (06:57): Sets a waiting period before the animation starts.
+
+animation-direction (08:17): Defines if the animation plays forward, in reverse, or alternate (back and forth).
+
+animation-play-state (09:36): Allows you to pause or resume an animation (e.g., paused or running).
+
+animation-fill-mode (12:35): Determines how the element appears before or after the animation runs. forwards keeps the final state, while backwards applies the initial keyframe style during the delay.
+
+Efficiency Features:
+Shorthand Property (10:29): You can define name, duration, timing, delay, iteration, direction, and fill-mode in a single line to keep code clean.
+
+Multiple Animations (15:05): By using comma-separated values, you can apply multiple different animation sequences to the same element simultaneously. -->
