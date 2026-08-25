@@ -1,0 +1,53 @@
+ .container{
+            background-color: rgb(9, 106, 106);
+            height: 80vh;
+            width: 30vw;
+        }
+
+        .box{
+            width: 34px;
+            height: 45px;
+            /* animation-name: karthikkaanimation;
+            animation-duration: 2s;
+            animation-iteration-count: 4;
+            animation-iteration-count: infinite;
+            animation-timing-function: ease-out;
+            animation-delay: 3s;
+            animation-direction: alternate-reverse;
+            animation-play-state: running; 
+            animation: name duration timing-function delay iteration-count direction fill-mode;
+            */
+           /*animation: karthikkaanimation 2s ease-in-out 2s 2  alternate-reverse,  forwards backwards ---> fill mode*/; 
+           animation: karthikkaanimation 2s ease-in-out 2s 2  alternate-reverse;
+           /* ,karthik2 3s ease-in-out 2s 2  alternate-reverse;  */
+        }
+
+        @keyframes karthikkaanimation {
+            from{
+                background-color: yellow;
+            }
+            to{
+                transform: translate(1000px);
+                background-color: red;
+            }
+        }
+
+        @keyframes karthik2 {
+            0%{
+                transform: rotate(100deg);
+            }
+           20%{
+                transform: rotate(200deg);
+           }
+            50%{
+                 transform: rotate(220deg);
+            }
+            80%{
+                 transform: rotate(300deg);
+            }
+            
+            100%{
+                 transform: rotate(310deg);
+            }
+            
+        }

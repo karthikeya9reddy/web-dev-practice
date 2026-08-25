@@ -1,0 +1,21 @@
+ .container{
+          background-color: aquamarine;
+          width: 50vw;
+          height: 40vh;
+        }
+
+        .box{
+           background-color: yellow;
+           width: 5vw;
+           height: 4vh;
+           /* transition-property: background-color, transform;
+           transition-duration: 3s;
+           transition-timing-function: ease-in-out;
+           transition-delay: 1s; */
+           transition: all 2s ease-in-out 0.6s;
+        }
+
+        .translate:hover{
+            transform: translateX(10vw) translateY(10vh) scale(2);
+            background-color: blue;
+        }

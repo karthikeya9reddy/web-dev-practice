@@ -1,0 +1,16 @@
+ * {
+            margin: 0;
+            padding: 0;
+        }
+
+        .box {
+            border: 2px solid red;
+            display: inline-block ;
+            padding: 45px;
+            margin: 35px;
+            width: 344px;
+        }
+        .box1{
+            /* display: none; */
+            /* visibility: hidden; */
+        }

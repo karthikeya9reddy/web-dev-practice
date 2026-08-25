@@ -1,0 +1,55 @@
+/* .box:first-child {
+            background-color: aqua;
+        } */
+
+        /* .box::first-line{
+            color: red;
+        } */
+
+        /* '*' selector selects every element in that class */
+        /* .boxes *{
+            color: blue;
+            border: 2px solid black;
+        } */
+
+        /* grouping of selectors and artibute selector  */
+        /* .box, a, p, [data-color="primary"]{
+            margin-top: 45px;
+            padding: 45px;
+            color: mediumaquamarine;
+        } */
+
+        /* .box:nth-child(even){
+            background-color: blue;
+            color: white;
+        } */
+
+        /* .box:nth-last-child(1){
+            background-color: yellow;
+            color: red;
+        } */
+
+        /* psuedo elements */
+
+         .boxes::before{
+            content: "karthik is very good";
+         }
+
+         .boxes::after{
+            content: "sigma course is also good";
+         }
+
+         /* selection selector */
+         ::selection{
+            color: yellow;
+            background-color: red;
+         }
+
+         .box::first-letter{
+            color: lime;
+            font-size: 45px;
+         }
+
+         input::placeholder{
+            color: blue;
+         }

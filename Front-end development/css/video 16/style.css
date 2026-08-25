@@ -1,0 +1,28 @@
+/* element selector */
+        /* The specificity of this selector is 1 */
+        h1 {
+            color: aqua;
+        }
+
+        /* class selectors */
+        /* The specificity of this selector is 1+10 = 11*/
+        h1.cred {
+            color: red;
+        }
+
+        /* The specificity of this selector is 10 */
+        .cpurple {
+            color: purple;
+            /*!important; ---> this tag is used to specify that this calss selector is most important */
+        }
+
+        /* The specificity of this selector is 10 */
+        .yellow {
+            color: yellow;
+        }
+
+        /* attribute selector */
+        /* The specificity of this selector is 10 */
+        [data-x=a] {
+            color: aqua;
+        }

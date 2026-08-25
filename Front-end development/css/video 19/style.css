@@ -1,0 +1,16 @@
+ .box {
+        border: 2px solid black;
+        padding: 34px;
+        /* syntax for box shadow ---> "box-shadow: h-offset v-offset blur spread color inset;" */
+        box-shadow: 5px 5px 15px 5px #888888;
+
+        /* syntax for text shadow is --->"text-shadow: h-offset v-offset blur color;"   */
+        text-shadow: 2px 2px 4px #888888;
+    }
+
+    .boxes{
+        text-shadow: 9px 8px 4px #2364ba;
+
+        /* syntax for outline ---> "outline: width style color" */
+        outline: 2px solid mediumslateblue  ;
+    }
