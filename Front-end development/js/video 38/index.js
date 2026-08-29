@@ -13,10 +13,10 @@ function sum(a,b, c=4){
     return a + b + c;
 }
 // sum(4, 5)
-result1 = sum(4, 5)
+// result1 = sum(4, 5)
 result2 = sum(55,434)
 result3 = sum(33, 565, 1)
-console.log("the sum of these numbers is: ", result1)
+console.log("the sum of these numbers is: ", sum(4,5))
 console.log("the sum of these numbers is: ", result2)
 console.log("the sum of these numbers is: ", result3)
 
