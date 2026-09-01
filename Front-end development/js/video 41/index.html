@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>javascript dom</title>
+</head>
+<body>
+    <div class="container">
+        <div class="box">
+            this is a box
+        </div>
+    </div>
+    <script>
+       document.title = "harry is good" 
+       console.log(document.title)
+       console.log(document.body)
+       document.body.style.backgroundColor = "green"
+    </script>
+</body>
+</html>
+
+
+
+<!-- summary of the video 
+
+Document Object Model (DOM): The DOM is a tree-like representation of an HTML document (0:04, 2:39). It allows JavaScript to access, modify, and manipulate the structure, content, and styling of a webpage (1:55, 2:45). By using commands like document.body or document.title, developers can change text, inject styles, or update elements in real-time (2:07, 3:04).
+
+Browser Object Model (BOM): The BOM allows JavaScript to interact with the browser itself, rather than just the webpage content (3:39). It provides additional objects beyond the document, such as location, which can be used to redirect users to different URLs (4:06).
+
+Window Object: The window is the global object in the browser that contains the DOM, the BOM, and the core JavaScript language (4:12, 4:40). Because it is global, developers can access document or body directly without needing to prefix them with window. (4:32, 4:45).
+
+Element Selection & Manipulation: The video demonstrates how to target HTML elements using browser developer tools. A key tip shared is the use of $0, which refers to the most recently selected element in the "Elements" tab of the browser's inspector (5:26). This allows for quick, direct manipulation of that specific element's styles (5:45, 6:11).
+
+Nodes: The DOM structure is essentially a tree of nodes (7:37). Every branch of this tree ends in a node—which could be an HTML element, text, or an empty element—that can be programmatically searched and modified (6:42, 7:06). -->
