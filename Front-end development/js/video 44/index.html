@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div class="container red bg-green">
+        <div class="box">hey i am a box</div>
+        <div class="box">hey i am a box</div>
+        <script>
+            let div = document.createElement("div");
+            div.innerHTML = "i have been inserted <b>by harry</b>"
+            div.setAttribute("class", "created")
+            document.querySelector(".container").before(div);
+
+            let cont = document.querySelector(".container")
+            cont.insertAdjacentHTML("afterbegin", "<b> i am under the water. please help me here too much raining.. iuuuaaaa</b>")
+        </script>
+    </div>
+</body>
+</html>
+
+<!-- summary of the video 
+
+1. Core Element Properties
+innerHTML: Gets or sets the HTML markup contained within an element (2:07).
+innerText: Returns only the human-readable text content inside an element (2:15).
+outerHTML: Returns the element itself along with its inner HTML content (2:56).
+tagName / nodeName: Used to identify the type of element (e.g., 'DIV'). nodeName works for all nodes, including text nodes and comments (3:30-3:50).
+textContent: Returns the raw text inside an element, excluding all HTML tags (4:05).
+hidden: A boolean attribute that can be toggled to show or hide an element (4:27).
+
+
+2. Attribute Manipulation
+These methods allow you to interact with standard and custom HTML attributes:
+
+hasAttribute(): Checks if a specific attribute exists (5:56).
+getAttribute(): Retrieves the value of an attribute (6:28).
+setAttribute(): Sets a new value for an attribute (6:40).
+removeAttribute(): Deletes an attribute from the element (7:48).
+dataset: Used to access custom data-* attributes (e.g., data-created-by) via the dataset property (9:17-10:13).
+
+
+3. Inserting and Removing Elements
+document.createElement(): Creates a new HTML node in memory (11:24).
+append(): Adds a node to the end of a parent element (12:59).
+before() / after(): Inserts nodes immediately before or after the target element (13:43).
+insertAdjacentHTML(): A powerful method to insert strings of HTML at specific positions: beforebegin, afterbegin, beforeend, or afterend (14:43-17:40).
+remove(): Deletes the selected element from the DOM entirely (17:54).
+
+
+4. Class List Management
+Managing classes is crucial for CSS styling via JavaScript:
+
+classList: Returns a DOMTokenList of all classes on an element (19:07).
+classList.add() / remove(): Adds or removes specific classes (19:40-20:06).
+classList.toggle(): Switches a class on or off. If the class exists, it is removed; if it doesn't, it is added (20:47). -->
