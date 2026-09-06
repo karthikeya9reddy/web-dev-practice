@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>event bubbling</title>
+    <style>
+        .child{
+            border-radius: 27px;
+            background-color: aliceblue;
+            border: 2px solid black;
+            padding: 14px;
+            margin: 14px;
+            cursor: pointer;
+        }
+
+        .childcontainer{
+            border-radius: 27px;
+            background-color: beige;
+            border: 2px solid black;
+            padding: 14px;
+            margin: 14px;
+            cursor: pointer;
+        }
+
+        .container{
+            border-radius: 27px;
+            background-color: yellow;
+            border: 2px solid black;
+            padding: 14px;
+            margin: 14px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="childcontainer">
+            <div class="child">
+                im a child
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.querySelector(".child").addEventListener("click", (e)=>{
+            e.stopPropagation()
+            alert("child was clicked")
+        })
+
+        document.querySelector(".childcontainer").addEventListener("click", (e)=>{
+             e.stopPropagation()
+             alert("childcontainer was clicked")
+        })
+
+        document.querySelector(".container").addEventListener("click", (e)=>{
+            e.stopPropagation()
+             alert("container was clicked")
+        })
+
+        function getrandomcolor(){
+            let val1 = Math.ceil(0 + Math.random() * 255);
+            let val2 = Math.ceil(0 + Math.random() * 255);
+            let val3 = Math.ceil(0 + Math.random() * 255);
+            return `rgb(${val1}, ${val2}, ${val3})`
+        }
+
+        // let a = setInterval(()=>{
+        //     document.querySelector(".childcontainer").style.background = getrandomcolor();
+        //     document.querySelector(".container").style.background = getrandomcolor();
+        // }, 1000);
+
+        
+        let a = setTimeout(()=>{
+            document.querySelector(".childcontainer").style.background = getrandomcolor();
+            document.querySelector(".container").style.background = getrandomcolor();
+        }, 1000);
+
+        console.log(a)
+    </script>
+</body>
+</html>
