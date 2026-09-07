@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <!-- <script src="script.js"></script> -->
+    <script src="promise.js"></script>
+</body>
+</html>
+
+<!-- summary of the video 
+
+1. Asynchronous Nature of JavaScript (1:34)
+JavaScript is non-blocking. Functions like setTimeout are offloaded to be executed later, allowing the rest of the script to finish first. Even with a 0-millisecond delay, they are placed at the end of the execution queue.
+
+2. Callback Functions (4:53)
+A callback is a function passed as an argument into another function to be executed once an asynchronous operation completes (e.g., loading a script).
+
+The Problem (Callback Hell): Nesting too many callbacks leads to a "Pyramid of Doom," making code difficult to read and maintain (11:34).
+
+Example Syntax: javascript function loadScript(src, callback) { let script = document.createElement('script'); script.src = src; script.onload = () => callback(script); document.head.append(script); }
+
+3. Promises (13:30)
+Promises provide a cleaner way to handle asynchronous operations, acting as a placeholder for a future value.
+
+States: A promise is either pending, resolved (success), or rejected (error).
+
+Syntax: javascript let promise = new Promise((resolve, reject) => { // Perform async task if (success) resolve("Data"); else reject("Error"); });
+promise.then((value) => { /* handle success / })
+.catch((error) => { / handle error */ });
+
+4. Promise API Methods (25:39)
+Promise.all([p1, p2]): Waits for all promises to resolve. Returns an array of results. If one fails, the whole thing rejects.
+
+Promise.allSettled([p1, p2]): Waits for all promises to finish, regardless of whether they resolved or rejected.
+
+Promise.race([p1, p2]): Returns the result of the first promise to settle (either resolve or reject).
+
+Promise.any([p1, p2]): Returns the result of the first promise that fulfills (resolves). Ignores rejections unless all fail. -->
