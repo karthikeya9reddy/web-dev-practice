@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <button>add note</button>
+    <div class="note"></div>
+    <script>
+        // if (localStorage.getItem("name")) {
+        //     a = localStorage.getItem("name")
+        //     document.write("welcome " + a)
+        // }
+        // else {
+        //     let a = prompt("enter your name ")
+        //     localStorage.setItem("name", a)
+        //     document.write("welcome " + a)
+        // }
+
+        function savenotetolocalstorage(note){
+            localStorage.setItem("note", note)
+        }
+        
+        let note = localStorage.getItem("note")
+        if (note) {
+            document.querySelector(".note").innerHTML = note
+        }
+
+        document.querySelector("button").addEventListener
+        ("click", ()=> {
+            let note = prompt("enter your note")
+            savenotetolocalstorage(note)
+            document.querySelector(".note").innerHTML = note
+        })
+    </script>
+</body>
+
+</html>
+
+
+<!-- summary of the video 
+
+Arrays & Loops: The instructor demonstrates solving a "Magical Sorting Hat" problem using an array of names and a for...of loop to assign categories (Houses) based on string length (0:48 - 4:59).
+
+Local Storage: A crucial browser API feature that allows developers to save key-value pairs persistently. Data stays in the browser even after a page reload (8:42 - 13:30).
+
+JSON Methods:
+JSON.stringify(): Used to convert a JavaScript object into a string so it can be stored in localStorage (12:01).
+
+JSON.parse(): Used to convert a JSON string back into a usable JavaScript object after retrieving it from storage (13:03).
+
+DOM Manipulation: The video shows how to interact with the webpage using methods like document.querySelector to update content dynamically based on user input (15:41 - 18:03).
+
+Practice Problem Highlights
+Double Trouble: Tasked with doubling elements in an array, with a specific rule for handling consecutive duplicates (5:33).
+
+Mirror Image: Creating a string that appends its reverse version to itself (6:00).
+
+Password Validator: Building a function to enforce password security (length, case sensitivity, and digit requirements) (6:19).
+
+Vowel Counter: Counting the number of vowels in a string (7:38).
+
+Note-Taking App: Implementing a feature to save, retrieve, and display user notes using localStorage (14:10 - 18:05).
