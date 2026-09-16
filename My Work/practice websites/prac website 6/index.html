@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>spootitify - web player: music for everyone</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/utility.css">
 </head>
@@ -27,6 +27,21 @@
                     <h2>
                         Your library
                     </h2>
+                </div>
+                <div class="songlist">
+                    <ul>
+                        <li>
+                            <img class="invert" src="svg files/music.svg" alt="">
+                            <div class="info">
+                                <div>Song Name</div>
+                                <div>Song Artist</div>
+                            </div>
+                            <div class="playnow">
+                                 <span>Play Now</span>
+                                <img width="35px" src="svg files/playnow.svg" alt="">
+                            </div>
+                        </li>
+                    </ul>
                 </div>
                 <div class="footer">
                     <div><a href="https://www.spotify.com/jp/legal/"><span>Legal</span></a></div>
@@ -54,8 +69,8 @@
                     </svg>
                 </div>
                 <div class="buttons">
-                    <button>Login</button>
-                    <button>Signup</button>
+                    <button class="signupbtn">Sign up</button>
+                    <button class="loginbtn">Log in</button>
                 </div>
             </div>
             <div class="spotifyplaylists">
@@ -71,24 +86,26 @@
                         <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3652Frz1fJMf1b1pfbeqBECP0FyNy_b8ONXfNSPVN2g&s=10"
                             alt="">
                         <h3>Happy Hits!</h3>
-                        <p>Hits to boost your mood and fill you with happiness !</p>
+                        <p style="font-size: 12px;">Hits to boost your mood and fill you with happiness !</p>
                     </div>
-                    <div class="card ">
-                        <div class="play">
-                            <svg width="50" height="40" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="25" cy="25" r="24" fill="#16e05b" />
-                                <path d="M21 16l14 9-14 9z" />
-                            </svg>
-                        </div>
-                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3652Frz1fJMf1b1pfbeqBECP0FyNy_b8ONXfNSPVN2g&s=10"
-                            alt="">
-                        <h3>Happy Hits!</h3>
-                        <p>Hits to boost your mood and fill you with happiness !</p>
+                </div>
+                <div class="playbar">
+                    <div class="songinfo">
+
+                    </div>
+                    <div class="songbuttons">
+                        <img src="svg files/prev.svg" alt="">
+                        <img src="svg files/play.svg" alt="">
+                        <img src="svg files/nextsong.svg" alt="">
+                    </div>
+                    <div class="songtime">
+
                     </div>
                 </div>
             </div>
         </div>
     </div>
+    <script src="script.js"></script>
 </body>
 
 </html>
