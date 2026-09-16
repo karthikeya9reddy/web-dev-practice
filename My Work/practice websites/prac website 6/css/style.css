@@ -36,6 +36,7 @@ body {
     font-weight: bold;
     align-items: center;
     font-size: 13px;
+    padding: 13px 0px;
 }
 .heading img{
     width: 20px;
@@ -59,11 +60,13 @@ body {
 }
 .right{
     margin: 16px 0;
+    position: relative;
 }
 .header{
     display: flex;
     justify-content:space-between;
     background-color: rgb(34, 34, 34);
+    height: 80px;
 }
 .header > *{
     padding: 20px;
@@ -76,6 +79,8 @@ body {
     display: flex;
     gap: 15px;
     flex-wrap: wrap;
+    overflow-y: scroll;
+    max-height: 70vh;
 }
  .card{
     width: 180px;
@@ -102,3 +107,82 @@ body {
     top: 145px;
     transition: 0.5s; 
 }
+.buttons > *{
+   margin: 0 12px;
+}
+.signupbtn{
+    background-color: rgb(34, 34, 34);
+    color: rgb(156, 148, 148);
+    font-weight: bold;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+.signupbtn:hover{
+    font-size: 17px;
+    color: white;
+}
+.loginbtn{
+    background-color: white;
+    border-radius: 25px;
+    color: black;
+    padding: 10px;
+    width: 85px;
+    cursor: pointer;
+    font-size: 16px;
+}
+.loginbtn:hover{
+    font-weight: bold;
+     font-size: 17px;
+}
+.playbar{
+    position: fixed;
+    border-radius: 80px;
+    bottom: 25px;
+    background-color: rgb(216, 234, 210);
+    width: 90%;
+    padding: 12px;
+    width: 70vw;
+}
+.songbuttons {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+}
+.songlist ul{
+    padding: 0 10px;
+}
+.songlist ul li{
+    list-style-type: decimal;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 12px 0; 
+    border: 2px solid rgb(86, 86, 84);
+    margin: 10px 0;
+    border-radius: 5px;
+}
+.songlist {
+    height: 565px;
+    overflow: auto;
+}
+.playnow{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+.playnow span{
+    font-size: 15px;
+    width: 64px;
+    padding: 11px;
+}
+.info{
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+}
+
