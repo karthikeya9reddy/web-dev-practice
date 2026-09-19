@@ -1694,3 +1694,74 @@ body {
     }
 }
 
+
+/* ========================================
+   SEARCH BOX
+======================================== */
+
+.search-box {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.search-box img {
+    flex-shrink: 0;
+}
+
+.search-box input {
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: 'Roboto', sans-serif;
+}
+
+.search-box input::placeholder {
+    color: rgb(150, 150, 150);
+    opacity: 1;
+}
+
+.search-box:focus-within {
+    color: white;
+    background: linear-gradient(90deg, rgba(255,255,255,0.09), rgba(255,255,255,0.035));
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25), 0 0 15px rgba(75,218,109,0.06);
+}
+
+.search-box:focus-within img {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(75,218,109,0.25));
+}
+
+.no-results {
+    cursor: default !important;
+    justify-content: center;
+    text-align: center;
+    color: rgb(170,170,170);
+    pointer-events: none;
+}
+
+.no-results:hover {
+    transform: none !important;
+    background: transparent !important;
+    border-color: rgb(86,86,84) !important;
+}
+
+.no-results .info {
+    text-align: center;
+}
+
+.no-results .info div:first-child {
+    color: white;
+    font-weight: bold;
+}
+
+.no-results .info div:last-child {
+    color: rgb(130,130,130);
+}
+
+

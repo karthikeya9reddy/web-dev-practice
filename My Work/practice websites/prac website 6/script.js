@@ -44,10 +44,14 @@ let currentSong = new Audio();
 let currentIndex = 0;
 
 const play = document.querySelector("#play");
+const searchInput = document.querySelector("#searchInput");
+const songList = document.querySelector(".songlist ul");
+const seekbar = document.querySelector(".seekbar");
+const circle = document.querySelector(".circle");
 
 function getSongName(songURL) {
     let filename = decodeURIComponent(
-        songURL.split("/songs/")[1]
+        songURL.split("/songs/")[1] || ""
     );
 
     return filename
@@ -59,8 +63,86 @@ function getSongName(songURL) {
         .trim();
 }
 
+function normalizeText(text) {
+    return text
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function fuzzyScore(songName, searchText) {
+    const name = normalizeText(songName);
+    const query = normalizeText(searchText);
+
+    if (!query) {
+        return 1;
+    }
+
+    if (!name) {
+        return 0;
+    }
+
+    if (name === query) {
+        return 10000;
+    }
+
+    if (name.startsWith(query)) {
+        return 9000 - name.length;
+    }
+
+    const words = name.split(" ");
+
+    for (const word of words) {
+        if (word.startsWith(query)) {
+            return 8000 - word.length;
+        }
+    }
+
+    if (name.includes(query)) {
+        return 7000 - name.indexOf(query);
+    }
+
+    const queryWords = query.split(" ");
+
+    let matchedWords = 0;
+
+    for (const word of queryWords) {
+        if (!word) {
+            continue;
+        }
+
+        if (name.includes(word)) {
+            matchedWords++;
+        }
+    }
+
+    if (matchedWords === queryWords.length) {
+        return 6000 - name.length;
+    }
+
+    let queryIndex = 0;
+    let matchedCharacters = 0;
+
+    for (let i = 0; i < name.length && queryIndex < query.length; i++) {
+        if (name[i] === query[queryIndex]) {
+            matchedCharacters++;
+            queryIndex++;
+        }
+    }
+
+    if (matchedCharacters === query.length) {
+        return 5000 - (name.length - query.length);
+    }
+
+    return 0;
+}
+
 function highlightSong(songURL) {
     let songItems = document.querySelectorAll(".songlist li");
+    let activeItem = null;
 
     songItems.forEach((item) => {
         item.classList.remove("active-song");
@@ -70,21 +152,30 @@ function highlightSong(songURL) {
         if (equalizer) {
             equalizer.remove();
         }
-    });
 
-    songItems.forEach((item) => {
         if (item.getAttribute("data-song") === songURL) {
-            item.classList.add("active-song");
-
-            let equalizer = document.createElement("div");
-            equalizer.className = "song-equalizer";
-
-            equalizer.innerHTML =
-                "<span></span><span></span><span></span>";
-
-            item.appendChild(equalizer);
+            activeItem = item;
         }
     });
+
+    if (activeItem) {
+        activeItem.classList.add("active-song");
+
+        let equalizer = document.createElement("div");
+        equalizer.className = "song-equalizer";
+
+        equalizer.innerHTML =
+            "<span></span><span></span><span></span>";
+
+        activeItem.appendChild(equalizer);
+
+        if (activeItem.style.display !== "none") {
+            activeItem.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest"
+            });
+        }
+    }
 
     updateEqualizer();
 }
@@ -109,16 +200,21 @@ function playMusic(songURL, songName, shouldPlay = true) {
     currentSong.src = songURL;
     currentSong.currentTime = 0;
 
-    document.querySelector(".songinfo").innerHTML = songName;
-    document.querySelector(".songtime").innerHTML = "00:00 / 00:00";
-    document.querySelector(".circle").style.left = "0%";
+    document.querySelector(".songinfo").textContent = songName;
+    document.querySelector(".songtime").textContent = "00:00 / 00:00";
+    circle.style.left = "0%";
 
     localStorage.setItem("lastPlayedSong", songURL);
 
     highlightSong(songURL);
 
     if (shouldPlay) {
-        currentSong.play();
+        let playPromise = currentSong.play();
+
+        if (playPromise) {
+            playPromise.catch(() => {});
+        }
+
         play.src = "svg files/pause.svg";
     } else {
         play.src = "svg files/play.svg";
@@ -127,60 +223,144 @@ function playMusic(songURL, songName, shouldPlay = true) {
     updateEqualizer();
 }
 
+function createSongItem(song, index) {
+    let displayName = getSongName(song);
+
+    let li = document.createElement("li");
+
+    li.setAttribute("data-song", song);
+    li.setAttribute("data-name", displayName);
+    li.setAttribute("data-index", index);
+
+    li.innerHTML = `
+        <img
+            class="invert"
+            src="svg files/music.svg"
+            alt=""
+        >
+
+        <div class="info">
+            <div>${displayName}</div>
+            <div>karthikeya</div>
+        </div>
+
+        <div class="playnow">
+            <span>Play Now</span>
+
+            <img
+                width="35px"
+                src="svg files/playnow.svg"
+                alt=""
+            >
+        </div>
+    `;
+
+    return li;
+}
+
+function renderSongs(songs) {
+    songList.innerHTML = "";
+
+    songs.forEach((song, index) => {
+        songList.appendChild(
+            createSongItem(song, index)
+        );
+    });
+}
+
+function searchSongs(value) {
+    let query = normalizeText(value);
+    let items = Array.from(
+        songList.querySelectorAll("li[data-song]")
+    );
+
+    if (!query) {
+        items.sort(
+            (a, b) =>
+                Number(a.dataset.index) -
+                Number(b.dataset.index)
+        );
+
+        items.forEach((item) => {
+            item.style.display = "";
+            songList.appendChild(item);
+        });
+
+        return;
+    }
+
+    let matches = [];
+
+    items.forEach((item) => {
+        let songName =
+            item.getAttribute("data-name") || "";
+
+        let score =
+            fuzzyScore(songName, query);
+
+        if (score > 0) {
+            item.style.display = "";
+            matches.push({
+                item: item,
+                score: score
+            });
+        } else {
+            item.style.display = "none";
+        }
+    });
+
+    matches.sort(
+        (a, b) => b.score - a.score
+    );
+
+    matches.forEach((match) => {
+        songList.appendChild(match.item);
+    });
+}
+
 async function main() {
     let songs = await getsongs();
 
-    let songUL = document
-        .querySelector(".songlist")
-        .getElementsByTagName("ul")[0];
+    renderSongs(songs);
 
-    for (const song of songs) {
-        let displayName = getSongName(song);
+    songList.addEventListener("click", (e) => {
+        let item = e.target.closest(
+            "li[data-song]"
+        );
 
-        songUL.innerHTML += `
-            <li data-song="${song}">
-                <img
-                    class="invert"
-                    src="svg files/music.svg"
-                    alt=""
-                >
+        if (!item) {
+            return;
+        }
 
-                <div class="info">
-                    <div>${displayName}</div>
-                    <div>karthikeya</div>
-                </div>
+        let songURL =
+            item.getAttribute("data-song");
 
-                <div class="playnow">
-                    <span>Play Now</span>
-                    <img
-                        width="35px"
-                        src="svg files/playnow.svg"
-                        alt=""
-                    >
-                </div>
-            </li>
-        `;
-    }
+        let songName =
+            item.getAttribute("data-name") ||
+            getSongName(songURL);
 
-    let songItems = Array.from(
-        document
-            .querySelector(".songlist")
-            .getElementsByTagName("li")
-    );
+        currentIndex =
+            songs.indexOf(songURL);
 
-    songItems.forEach((e, index) => {
-        e.addEventListener("click", () => {
-            currentIndex = index;
+        playMusic(
+            songURL,
+            songName
+        );
+    });
 
-            let songURL = e.getAttribute("data-song");
+    searchInput.addEventListener("input", () => {
+        searchSongs(searchInput.value);
+    });
 
-            let songName = e
-                .querySelector(".info")
-                .firstElementChild
-                .innerHTML;
+    searchInput.addEventListener("compositionend", () => {
+        searchSongs(searchInput.value);
+    });
 
-            playMusic(songURL, songName);
-        });
+    searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            searchInput.value = "";
+            searchSongs("");
+        }
     });
 
     play.addEventListener("click", () => {
@@ -189,191 +369,297 @@ async function main() {
         }
 
         if (currentSong.paused) {
-            currentSong.play();
-            play.src = "svg files/pause.svg";
+            let playPromise =
+                currentSong.play();
+
+            if (playPromise) {
+                playPromise.catch(() => {});
+            }
+
+            play.src =
+                "svg files/pause.svg";
         } else {
             currentSong.pause();
-            play.src = "svg files/play.svg";
+
+            play.src =
+                "svg files/play.svg";
         }
 
         updateEqualizer();
     });
 
-    document.querySelector("#next").addEventListener("click", () => {
-        if (songs.length === 0) {
-            return;
+    document
+        .querySelector("#next")
+        .addEventListener("click", () => {
+            if (songs.length === 0) {
+                return;
+            }
+
+            currentIndex++;
+
+            if (currentIndex >= songs.length) {
+                currentIndex = 0;
+            }
+
+            let songURL =
+                songs[currentIndex];
+
+            playMusic(
+                songURL,
+                getSongName(songURL)
+            );
+        });
+
+    document
+        .querySelector("#previous")
+        .addEventListener("click", () => {
+            if (songs.length === 0) {
+                return;
+            }
+
+            currentIndex--;
+
+            if (currentIndex < 0) {
+                currentIndex =
+                    songs.length - 1;
+            }
+
+            let songURL =
+                songs[currentIndex];
+
+            playMusic(
+                songURL,
+                getSongName(songURL)
+            );
+        });
+
+    currentSong.addEventListener(
+        "ended",
+        () => {
+            if (songs.length === 0) {
+                return;
+            }
+
+            currentIndex++;
+
+            if (currentIndex >= songs.length) {
+                currentIndex = 0;
+            }
+
+            let songURL =
+                songs[currentIndex];
+
+            playMusic(
+                songURL,
+                getSongName(songURL)
+            );
         }
+    );
 
-        currentIndex++;
+    currentSong.addEventListener(
+        "play",
+        updateEqualizer
+    );
 
-        if (currentIndex >= songs.length) {
-            currentIndex = 0;
-        }
-
-        let songURL = songs[currentIndex];
-        let songName = getSongName(songURL);
-
-        playMusic(songURL, songName);
-    });
-
-    document.querySelector("#previous").addEventListener("click", () => {
-        if (songs.length === 0) {
-            return;
-        }
-
-        currentIndex--;
-
-        if (currentIndex < 0) {
-            currentIndex = songs.length - 1;
-        }
-
-        let songURL = songs[currentIndex];
-        let songName = getSongName(songURL);
-
-        playMusic(songURL, songName);
-    });
-
-    currentSong.addEventListener("ended", () => {
-        if (songs.length === 0) {
-            return;
-        }
-
-        currentIndex++;
-
-        if (currentIndex >= songs.length) {
-            currentIndex = 0;
-        }
-
-        let songURL = songs[currentIndex];
-        let songName = getSongName(songURL);
-
-        playMusic(songURL, songName);
-    });
-
-    currentSong.addEventListener("play", () => {
-        updateEqualizer();
-    });
-
-    currentSong.addEventListener("pause", () => {
-        updateEqualizer();
-    });
-
-    let seekbar = document.querySelector(".seekbar");
-    let circle = document.querySelector(".circle");
+    currentSong.addEventListener(
+        "pause",
+        updateEqualizer
+    );
 
     let isDragging = false;
 
-    currentSong.addEventListener("timeupdate", () => {
-        document.querySelector(".songtime").innerHTML =
-            `${secondsToMinutesSeconds(currentSong.currentTime)} / ${secondsToMinutesSeconds(currentSong.duration)}`;
+    currentSong.addEventListener(
+        "timeupdate",
+        () => {
+            document.querySelector(
+                ".songtime"
+            ).textContent =
+                `${secondsToMinutesSeconds(
+                    currentSong.currentTime
+                )} / ${secondsToMinutesSeconds(
+                    currentSong.duration
+                )}`;
 
-        if (!isDragging && !isNaN(currentSong.duration)) {
+            if (
+                !isDragging &&
+                !isNaN(currentSong.duration) &&
+                currentSong.duration > 0
+            ) {
+                let percent =
+                    (
+                        currentSong.currentTime /
+                        currentSong.duration
+                    ) * 100;
+
+                circle.style.left =
+                    percent + "%";
+            }
+        }
+    );
+
+    seekbar.addEventListener(
+        "click",
+        (e) => {
+            if (
+                isDragging ||
+                !currentSong.src ||
+                isNaN(currentSong.duration)
+            ) {
+                return;
+            }
+
+            let rect =
+                seekbar.getBoundingClientRect();
+
             let percent =
-                (currentSong.currentTime / currentSong.duration) * 100;
+                (
+                    (e.clientX - rect.left) /
+                    rect.width
+                ) * 100;
 
-            circle.style.left = percent + "%";
-        }
-    });
+            percent =
+                Math.max(
+                    0,
+                    Math.min(100, percent)
+                );
 
-    seekbar.addEventListener("click", (e) => {
-        if (isDragging || !currentSong.src) {
-            return;
-        }
+            circle.style.left =
+                percent + "%";
 
-        let rect = seekbar.getBoundingClientRect();
-
-        let percent =
-            ((e.clientX - rect.left) / rect.width) * 100;
-
-        percent = Math.max(0, Math.min(100, percent));
-
-        circle.style.left = percent + "%";
-
-        if (!isNaN(currentSong.duration)) {
             currentSong.currentTime =
-                (percent / 100) * currentSong.duration;
+                (
+                    percent / 100
+                ) * currentSong.duration;
         }
-    });
+    );
 
-    seekbar.addEventListener("mousedown", () => {
-        isDragging = true;
-    });
-
-    document.addEventListener("mousemove", (e) => {
-        if (!isDragging || !currentSong.src) {
-            return;
+    seekbar.addEventListener(
+        "mousedown",
+        () => {
+            isDragging = true;
         }
+    );
 
-        let rect = seekbar.getBoundingClientRect();
+    document.addEventListener(
+        "mousemove",
+        (e) => {
+            if (
+                !isDragging ||
+                !currentSong.src ||
+                isNaN(currentSong.duration)
+            ) {
+                return;
+            }
 
-        let percent =
-            ((e.clientX - rect.left) / rect.width) * 100;
+            let rect =
+                seekbar.getBoundingClientRect();
 
-        percent = Math.max(0, Math.min(100, percent));
+            let percent =
+                (
+                    (e.clientX - rect.left) /
+                    rect.width
+                ) * 100;
 
-        circle.style.left = percent + "%";
+            percent =
+                Math.max(
+                    0,
+                    Math.min(100, percent)
+                );
 
-        if (!isNaN(currentSong.duration)) {
+            circle.style.left =
+                percent + "%";
+
             currentSong.currentTime =
-                (percent / 100) * currentSong.duration;
+                (
+                    percent / 100
+                ) * currentSong.duration;
         }
-    });
+    );
 
-    document.addEventListener("mouseup", () => {
-        isDragging = false;
-    });
+    document.addEventListener(
+        "mouseup",
+        () => {
+            isDragging = false;
+        }
+    );
 
-    let lastPlayedSong = localStorage.getItem("lastPlayedSong");
+    let lastPlayedSong =
+        localStorage.getItem(
+            "lastPlayedSong"
+        );
 
-    if (lastPlayedSong && songs.includes(lastPlayedSong)) {
-        currentIndex = songs.indexOf(lastPlayedSong);
+    if (
+        lastPlayedSong &&
+        songs.includes(lastPlayedSong)
+    ) {
+        currentIndex =
+            songs.indexOf(
+                lastPlayedSong
+            );
 
-        let songName = getSongName(lastPlayedSong);
-
-        playMusic(lastPlayedSong, songName, false);
+        playMusic(
+            lastPlayedSong,
+            getSongName(lastPlayedSong),
+            false
+        );
     }
 }
 
-main();
-
-
-
-
-
-
-
-
-
-
-
-
-const cursorLight = document.querySelector(".cursor-light");
-
-document.addEventListener("mousemove", (e) => {
-    cursorLight.style.left = `${e.clientX}px`;
-    cursorLight.style.top = `${e.clientY}px`;
-    cursorLight.style.opacity = "1";
+main().catch((error) => {
+    console.error(error);
 });
 
-document.addEventListener("mouseleave", () => {
-    cursorLight.style.opacity = "0";
-});
+const cursorLight =
+    document.querySelector(".cursor-light");
 
+if (cursorLight) {
+    document.addEventListener(
+        "mousemove",
+        (e) => {
+            cursorLight.style.left =
+                `${e.clientX}px`;
 
+            cursorLight.style.top =
+                `${e.clientY}px`;
 
-document.addEventListener("click", (e) => {
+            cursorLight.style.opacity =
+                "1";
+        }
+    );
 
-    const effect = document.createElement("div");
+    document.addEventListener(
+        "mouseleave",
+        () => {
+            cursorLight.style.opacity =
+                "0";
+        }
+    );
+}
 
-    effect.className = "click-effect";
+document.addEventListener(
+    "click",
+    (e) => {
+        const effect =
+            document.createElement("div");
 
-    effect.style.left = e.clientX + "px";
-    effect.style.top = e.clientY + "px";
+        effect.className =
+            "click-effect";
 
-    document.body.appendChild(effect);
+        effect.style.left =
+            e.clientX + "px";
 
-    setTimeout(() => {
-        effect.remove();
-    }, 1100);
-});
+        effect.style.top =
+            e.clientY + "px";
 
+        document.body.appendChild(
+            effect
+        );
+
+        setTimeout(
+            () => {
+                effect.remove();
+            },
+            1100
+        );
+    }
+);
