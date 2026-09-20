@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b0b0b">
+    <meta name="description" content="Spootitify — a personal ad-free web music player.">
+    <title>Spootitify — Ad-Free Music Player</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/utility.css">
+    <link rel="icon" type="image/x-icon" href="svg files/favicon.ico">
+</head>
+<body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <div class="container flex bg-black">
+        <aside class="left" id="sidebar" aria-label="Music navigation">
+            <div class="home bg-grey rounded m-1 p-1">
+                <div class="logo">
+                    <img width="190" src="svg files/logo.svg" alt="Spootitify">
+                </div>
+
+                <ul>
+                    <li class="home-link" tabindex="0" role="button" aria-label="Go to home">
+                        <img class="invert" src="svg files/home.svg" alt="">
+                        <span>Home</span>
+                    </li>
+
+                    <li class="search-box">
+                        <img class="invert" src="svg files/search.svg" alt="">
+                        <input type="search" id="searchInput" placeholder="Search songs..." autocomplete="off" aria-label="Search songs">
+                        <kbd class="search-shortcut">Ctrl K</kbd>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="library bg-grey rounded m-1 p-1">
+                <div class="heading">
+                    <img class="invert" src="svg files/playlist.svg" alt="">
+                    <div class="heading-copy">
+                        <h2>Your Songs</h2>
+                        <span id="libraryCount">0 tracks</span>
+                    </div>
+                </div>
+
+                <div class="songlist">
+                    <ul></ul>
+                </div>
+
+                <div class="footer">
+                    <div><a href="https://www.spotify.com/jp/legal/"><span>Legal</span></a></div>
+                    <div><a href="https://www.spotify.com/jp/privacy/"><span>Privacy Center</span></a></div>
+                    <div><a href="https://www.spotify.com/jp/legal/privacy-policy/"><span>Privacy Policy</span></a></div>
+                    <div><a href="https://www.spotify.com/jp/legal/cookies-policy/"><span>Cookies</span></a></div>
+                    <div><a href="https://www.spotify.com/jp/legal/privacy-policy/#s3"><span>About Ads</span></a></div>
+                    <div><a href="https://www.spotify.com/jp/accessibility/"><span>Accessibility</span></a></div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="right bg-grey rounded">
+            <header class="header">
+                <div class="nav">
+                    <button class="nav-btn" type="button" aria-label="Previous navigation page">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M15 6L9.70711 11.2929C9.37377 11.6262 9.20711 11.7929 9.20711 12C9.20711 12.2071 9.37377 12.3738 9.70711 12.7071L15 18" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                    <button class="nav-btn" type="button" aria-label="Next navigation page">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M9 18L14.2929 12.7071C14.6262 12.3738 14.7929 12.2071 14.7929 12C14.7929 11.7929 14.6262 11.6262 14.2929 11.2929L9 6" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="player-badge" aria-live="polite">
+                    <span class="status-dot"></span>
+                    <span id="playerStatus">Ready to play</span>
+                </div>
+
+                <div class="buttons">
+                    <button class="signupbtn" type="button">Sign up</button>
+                    <button class="loginbtn" type="button">Log in</button>
+                </div>
+            </header>
+
+            <section class="spotifyplaylists" aria-labelledby="playlistTitle">
+                <div class="playlist-head">
+                    <div>
+                        <span class="eyebrow">YOUR MUSIC SPACE</span>
+                        <h1 id="playlistTitle">Spootitify Playlists</h1>
+                        <p>Your music, your player, no interruptions.</p>
+                    </div>
+                    <div class="playlist-actions">
+                        <button class="create-folder-button" type="button" aria-label="Create a new folder">
+                            <span class="create-folder-plus" aria-hidden="true"><span></span><span></span></span>
+                            <span class="create-folder-label">New folder</span>
+                        </button>
+                        <div class="playlist-pill">AD-FREE</div>
+                    </div>
+                </div>
+
+                <div class="cardcontainer">
+                    <article class="card folder-card" data-folder-id="happy-hits" data-folder-name="Happy Hits!" data-folder-description="Bright tracks for instant good vibes.">
+            <span class="folder-count">0 tracks</span>
+            <div class="play" role="button" tabindex="0" aria-label="Play Happy Hits">
+                            <svg width="50" height="40" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                <circle cx="25" cy="25" r="24" fill="#16e05b" />
+                                <path d="M21 16l14 9-14 9z" />
+                            </svg>
+                        </div>
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ3652Frz1fJMf1b1pfbeqBECP0FyNy_b8ONXfNSPVN2g&s=10" alt="Happy Hits artwork" loading="lazy">
+                        <h3>Happy Hits!</h3>
+                        <p>Bright tracks for instant good vibes.</p>
+                    </article>
+                </div>
+
+                <div class="playbar" aria-label="Music player">
+                    <div class="playbar-glow"></div>
+
+                    <div class="seekbar" aria-label="Song progress" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                        <div class="circle"></div>
+                    </div>
+
+                    <div class="abovebar">
+                        <div class="songinfo" aria-live="polite" title=""></div>
+
+                        <div class="songbuttons">
+                            <img id="previous" src="svg files/prev.svg" alt="Previous song" tabindex="0" role="button">
+                            <img id="play" src="svg files/play.svg" alt="Play" tabindex="0" role="button">
+                            <img id="next" src="svg files/nextsong.svg" alt="Next song" tabindex="0" role="button">
+                        </div>
+
+                        <div class="songtime" aria-live="off">00:00 / 00:00</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="cursor-light" aria-hidden="true"></div>
+    <script src="script.js"></script>
+    <script src="hamburger.js"></script>
+</body>
+</html>
