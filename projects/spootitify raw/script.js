@@ -4361,22 +4361,22 @@ main().catch(
     const LAYER_SPEC = [
         {
             share: 0.56, softness: 2, cell: 94,
-            sizeMin: 0.12, sizeMax: 0.30,
-            alphaMin: 0.13, alphaMax: 0.25,
+            sizeMin: 1.35, sizeMax: 1.95,
+            alphaMin: 0.18, alphaMax: 0.30,
             flowScale: 0.0016, flowSpeed: 0.55, flowAmp: 10,
             relax: 0.075, agility: 0.34, maxSpeed: 70
         },
         {
             share: 0.32, softness: 1, cell: 72,
-            sizeMin: 0.22, sizeMax: 0.44,
-            alphaMin: 0.14, alphaMax: 0.29,
+            sizeMin: 1.65, sizeMax: 2.45,
+            alphaMin: 0.20, alphaMax: 0.34,
             flowScale: 0.0026, flowSpeed: 0.85, flowAmp: 18,
             relax: 0.035, agility: 0.78, maxSpeed: 220
         },
         {
             share: 0.12, softness: 0, cell: 58,
-            sizeMin: 0.32, sizeMax: 0.62,
-            alphaMin: 0.16, alphaMax: 0.34,
+            sizeMin: 1.95, sizeMax: 2.85,
+            alphaMin: 0.22, alphaMax: 0.38,
             flowScale: 0.0038, flowSpeed: 1.15, flowAmp: 30,
             relax: 0.020, agility: 1.30, maxSpeed: 280
         }
@@ -5501,7 +5501,10 @@ main().catch(
             if (colour < particle.colourLow) { colour = particle.colourLow; }
             if (colour > particle.colourHigh) { colour = particle.colourHigh; }
 
-            const glow = particle.size * particle.reach * (1 + particle.flash * 0.35);
+            const glow = Math.max(
+                1.55,
+                particle.size * particle.reach * (1 + particle.flash * 0.35)
+            );
 
             ctx.globalAlpha = alpha;
 
@@ -5512,6 +5515,36 @@ main().catch(
                 glow * 2,
                 glow * 2
             );
+
+            const coreRadius = Math.max(
+                0.72,
+                particle.size * 0.38 * (1 + particle.flash * 0.25)
+            );
+
+            ctx.globalAlpha = Math.min(
+                0.78,
+                alpha * 1.12
+            );
+
+            ctx.fillStyle = RAMP[
+                Math.max(
+                    0,
+                    Math.min(
+                        RAMP.length - 1,
+                        colour
+                    )
+                )
+            ];
+
+            ctx.beginPath();
+            ctx.arc(
+                particle.x,
+                particle.y,
+                coreRadius,
+                0,
+                TAU
+            );
+            ctx.fill();
         }
 
         ctx.globalAlpha = 1;
