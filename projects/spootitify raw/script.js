@@ -1468,11 +1468,8 @@ function setupCursor() {
             raf =
                 requestAnimationFrame(
                     () => {
-                        light.style.left =
-                            `${x}px`;
-
-                        light.style.top =
-                            `${y}px`;
+                        light.style.transform =
+                            `translate3d(${x}px, ${y}px, 0) translate3d(-50%, -50%, 0)`;
 
                         light.style.opacity =
                             "1";
@@ -1691,13 +1688,69 @@ function updateFolderCardCounts() {
     });
 }
 
+function animateModalOpen(modal, bodyClass) {
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.remove(
+        "open",
+        "is-opening"
+    );
+
+    modal.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+    document.body.classList.add(
+        bodyClass
+    );
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            modal.classList.add(
+                "open",
+                "is-opening"
+            );
+
+            window.setTimeout(
+                () => modal.classList.remove("is-opening"),
+                700
+            );
+        });
+    });
+}
+
+function animateFolderCardOpen(card) {
+    if (!card) {
+        return;
+    }
+
+    card.classList.remove(
+        "folder-card-opening"
+    );
+
+    void card.offsetWidth;
+
+    card.classList.add(
+        "folder-card-opening"
+    );
+
+    window.setTimeout(
+        () => card.classList.remove("folder-card-opening"),
+        240
+    );
+}
+
 function closeFolderModal() {
     if (!folderModal) {
         return;
     }
 
     folderModal.classList.remove(
-        "open"
+        "open",
+        "is-opening"
     );
 
     folderModal.setAttribute(
@@ -2577,9 +2630,13 @@ function startFolderPlayback(
     );
 }
 
-function openFolderModal(folder) {
+function openFolderModal(folder, sourceCard = null) {
     const modal =
         createFolderModal();
+
+    animateFolderCardOpen(
+        sourceCard
+    );
 
     activeFolderId =
         folder.id;
@@ -2592,16 +2649,8 @@ function openFolderModal(folder) {
         renderFolderPickerView(folder);
     }
 
-    modal.classList.add(
-        "open"
-    );
-
-    modal.setAttribute(
-        "aria-hidden",
-        "false"
-    );
-
-    document.body.classList.add(
+    animateModalOpen(
+        modal,
         "folder-modal-open"
     );
 
@@ -2758,7 +2807,8 @@ function bindFolderCard(card) {
         event.preventDefault();
 
         openFolderModal(
-            data
+            data,
+            card
         );
     };
 
@@ -2791,7 +2841,8 @@ function bindFolderCard(card) {
             }
 
             openFolderModal(
-                data
+                data,
+                card
             );
         }
     );
@@ -2815,7 +2866,8 @@ function bindFolderCard(card) {
             event.preventDefault();
 
             openFolderModal(
-                data
+                data,
+                card
             );
         }
     );
@@ -3270,16 +3322,8 @@ function openCreateFolderModal() {
     showCreateFolderError("");
     updateCreateFolderImageState();
 
-    modal.classList.add(
-        "open"
-    );
-
-    modal.setAttribute(
-        "aria-hidden",
-        "false"
-    );
-
-    document.body.classList.add(
+    animateModalOpen(
+        modal,
         "create-folder-modal-open"
     );
 
@@ -3297,7 +3341,8 @@ function closeCreateFolderModal() {
     }
 
     newFolderModal.classList.remove(
-        "open"
+        "open",
+        "is-opening"
     );
 
     newFolderModal.setAttribute(
@@ -4312,11 +4357,11 @@ main().catch(
 
     const PAD = 78;              // off-canvas margin where particles wrap
     const FADE_BAND = 104;       // fade ramp width (mostly outside the canvas)
-    const SPRITE_SIZE = 28;      // glow sprite resolution
-    const CLOUD_DIVISOR = 7;     // nebula canvas renders at 1/7 scale
-    const FIELD_REBUILD = 5;     // frames between flow-field rebuilds
-    const CLOUD_REBUILD = 3;     // frames between nebula redraws
-    const RECT_REFRESH = 12;     // frames between host rect reads
+    const SPRITE_SIZE = 24;      // glow sprite resolution
+    const CLOUD_DIVISOR = 12;     // lighter internal nebula resolution
+    const FIELD_REBUILD = 10;     // frames between flow-field rebuilds
+    const CLOUD_REBUILD = 5;     // frames between nebula redraws
+    const RECT_REFRESH = 24;     // frames between host rect reads
 
     const POINTER_RADIUS_MIN = 130;
     const POINTER_RADIUS_MAX = 330;
@@ -4799,7 +4844,7 @@ main().catch(
      * ------------------------------------------------------------------ */
 
     function pixelBudget() {
-        return state.coarse ? 1100000 : 2600000;
+        return state.coarse ? 300000 : 760000;
     }
 
     function desiredCount(width, height) {
@@ -4808,26 +4853,28 @@ main().catch(
         let count;
 
         if (!state.coarse && width >= 1400) {
-            count = Math.min(area / 180, 12000);
+            count = Math.min(area / 1050, 800);
         } else if (width >= 900) {
-            count = Math.min(area / 240, 8500);
+            count = Math.min(area / 1250, 540);
         } else {
-            count = Math.min(area / 120, 4200);
+            count = Math.min(area / 1450, 300);
         }
 
         const cores = navigator.hardwareConcurrency || 8;
 
-        if (cores <= 4) {
-            count *= 0.88;
+        if (cores <= 2) {
+            count *= 0.50;
+        } else if (cores <= 4) {
+            count *= 0.65;
         }
 
         if (state.reduced) {
             count *= 0.30;
         }
 
-        count *= Math.pow(0.90, state.degrade);
+        count *= Math.pow(0.80, state.degrade);
 
-        return Math.max(220, Math.round(count));
+        return Math.max(120, Math.round(count));
     }
 
     function measure() {
@@ -5106,7 +5153,7 @@ main().catch(
             ["rgba(180,255,214,0.05)", "rgba(120,200,164,0.022)"]
         ];
 
-        const count = state.coarse ? 7 : 11;
+        const count = state.coarse ? 1 : 3;
         const clouds = [];
 
         for (let i = 0; i < count; i++) {
