@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080b11">
+  <meta name="description" content="NEXORA — your personal cinema, anime and music library.">
+  <title>NEXORA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=7.4.0">
+  <script defer src="/script.js?v=7.4.0"></script>
+</head>
+<body>
+  <div class="ambient-layer ambient-a" id="ambient-a"></div>
+  <div class="ambient-layer ambient-b" id="ambient-b"></div>
+
+  <header class="topbar">
+    <a class="brand" href="#discover" data-page="discover" aria-label="NEXORA home">NEXORA</a>
+    <nav class="nav" id="main-nav" aria-label="Main navigation">
+      <button class="nav-link active" type="button" data-page="discover">Discover</button>
+      <button class="nav-link" type="button" data-page="movies">Movies</button>
+      <button class="nav-link" type="button" data-page="anime">Anime</button>
+      <button class="nav-link" type="button" data-page="music">Music</button>
+      <button class="nav-link" type="button" data-page="documentaries">Docs</button>
+      <button class="nav-link" type="button" data-page="series">Web-Series</button>
+    </nav>
+    <div class="top-actions">
+      <button class="icon-button" id="search-open" type="button" aria-label="Search current section" title="Search">⌕</button>
+      <button class="menu-button" id="menu-open" type="button" aria-label="Open navigation" aria-expanded="false"><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="hero" aria-label="Discover">
+      <div class="hero-bg hero-bg-a active" id="bg-a"></div>
+      <div class="hero-bg hero-bg-b" id="bg-b"></div>
+      <video class="hero-preview" id="hero-preview" muted playsinline preload="metadata" aria-hidden="true"></video>
+      <div class="hero-shade"></div>
+      <div class="hero-content">
+        <p class="eyebrow" id="hero-kicker"><i></i> A MOMENT TO DISCOVER</p>
+        <h1 id="hero-quote">Stories worth staying for.</h1>
+        <p class="hero-description" id="hero-desc">Your personal collection, ready for its next story.</p>
+        <div class="hero-actions" id="hero-ctas" aria-label="Featured title actions"></div>
+      </div>
+      <div class="hero-bottom"><span id="hero-kind">NEXORA SELECTION</span><span class="hero-rule"></span><span id="hero-foot-note">CINEMA · SOUND · STORIES</span></div>
+      <div class="hero-progress"><span id="progress-fill"></span></div>
+    </section>
+
+    <section class="home-section" id="continue-section" hidden>
+      <div class="section-heading"><div><p class="eyebrow">PICK UP WHERE YOU LEFT OFF</p><h2>Continue watching<span>.</span></h2></div><span class="section-note" id="continue-note"></span></div>
+      <div class="media-row" id="continue-row"></div>
+    </section>
+
+    <section class="home-section" id="recent-section">
+      <div class="section-heading"><div><p class="eyebrow">JUST ARRIVED</p><h2>Recently added<span>.</span></h2></div><span class="section-note" id="library-status">CONNECTING TO YOUR LIBRARY</span></div>
+      <div class="media-row" id="recent-row"><p class="empty-state">Looking through your collection…</p></div>
+    </section>
+
+    <section class="home-section pick-section" id="picks-section">
+      <div class="section-heading"><div><p class="eyebrow">A LITTLE SOMETHING DIFFERENT</p><h2>Tonight’s picks<span>.</span></h2></div><button class="text-action" id="refresh-picks" type="button">RESHUFFLE <span>↻</span></button></div>
+      <div class="media-row" id="picks-row"><p class="empty-state">Your next watch will appear here.</p></div>
+    </section>
+
+    <section class="home-section" id="favourite-section">
+      <div class="section-heading"><div><p class="eyebrow">KEPT CLOSE</p><h2>Your favourites<span>.</span></h2></div><button class="text-action" type="button" data-page="favourites">VIEW ALL <span>↗</span></button></div>
+      <div class="media-row" id="favourite-row"><p class="empty-state">Save a title with the bookmark button.</p></div>
+    </section>
+
+    <section class="collection-page" id="collection" hidden aria-live="polite">
+      <div class="collection-topline">
+        <div class="collection-title-block"><p class="eyebrow" id="collection-kicker">YOUR COLLECTION</p><h1 id="collection-title">Movies<span>.</span></h1><p class="collection-description" id="collection-desc">Explore your collection.</p></div>
+        <div class="collection-count" id="result-count">0 TITLES</div>
+      </div>
+      <div class="browse-toolbar">
+        <label class="section-search-wrap" for="section-search"><span class="search-symbol">⌕</span><input id="section-search" type="search" placeholder="Search this section…" autocomplete="off" spellcheck="false"><button id="clear-section-search" type="button" aria-label="Clear search" hidden>×</button><kbd>/</kbd></label>
+        <label class="sort-wrap">SORT <select id="sort"><option value="recent">Recently added</option><option value="az">Name A–Z</option><option value="za">Name Z–A</option><option value="large">File size</option></select></label>
+      </div>
+      <div class="search-results-panel" id="section-search-results" hidden><div class="search-results-heading"><span id="section-search-label">SEARCH RESULTS</span><span id="section-search-count"></span></div><div class="compact-results" id="compact-results"></div><p class="no-search-results" id="no-search-results" hidden>No matching titles in this section.</p></div>
+      <div class="taxonomy" id="taxonomy">
+        <div class="taxonomy-row"><div class="taxonomy-label">GENRE</div><div class="taxonomy-options" id="genre-filters"></div></div>
+        <div class="taxonomy-row subgenre-row" id="subgenre-row" hidden><div class="taxonomy-label">SUBGENRE</div><div class="taxonomy-options" id="subgenre-filters"></div></div>
+      </div>
+      <div class="collection-meta"><span id="collection-status">All titles</span><span id="collection-sort-note"></span></div>
+      <div class="media-grid" id="poster-grid"></div>
+      <div class="empty-collection" id="empty-library" hidden><div class="empty-mark">✳</div><h3 id="empty-title">Nothing here yet</h3><p id="empty-message">Add supported media to your Entertainment folder.</p></div>
+    </section>
+  </main>
+
+  <footer class="footer"><a class="brand footer-brand" href="#discover" data-page="discover">NEXORA</a><span>YOUR COLLECTION. YOUR SCREEN.</span><small>PERSONAL MEDIA EXPERIENCE</small></footer>
+
+  <div class="search-overlay" id="search-layer" hidden>
+    <div class="search-overlay-card" role="dialog" aria-modal="true" aria-label="Search current section">
+      <button class="overlay-close" id="search-close" type="button" aria-label="Close search">×</button>
+      <p class="eyebrow">SEARCH <span id="overlay-search-scope">YOUR COLLECTION</span></p>
+      <label class="overlay-search-field"><span>⌕</span><input id="search-input" type="search" placeholder="Type a title, genre or folder…" autocomplete="off"></label>
+      <div class="overlay-search-results" id="search-results"></div>
+    </div>
+  </div>
+
+  <div class="player-overlay" id="player-layer" hidden>
+    <div class="player-window" id="player-window" role="dialog" aria-modal="true" aria-label="NEXORA player">
+      <header class="player-header">
+        <button class="player-back" id="player-back" type="button" aria-label="Close player"><span>←</span><span class="back-label">BACK TO NEXORA</span></button>
+        <div class="player-heading"><span class="now-playing-label">NOW PLAYING</span><strong id="player-title">Media title</strong></div>
+        <div class="player-header-actions"><button class="player-icon-button" id="player-info-toggle" type="button" title="Media information" aria-label="Media information">ⓘ</button><button class="player-icon-button" id="player-minimize" type="button" title="Mini player" aria-label="Mini player">⌄</button><a class="player-icon-button" id="download-link" href="#" title="Download" aria-label="Download">↓</a><button class="player-icon-button" id="share-video" type="button" title="Share" aria-label="Share">↗</button></div>
+      </header>
+      <div class="player-body">
+        <div class="player-stage" id="stage">
+          <video id="media" playsinline preload="metadata"></video>
+          <div class="audio-scene" id="audio-visual" hidden><div class="audio-orb"><span>♫</span></div><div class="audio-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="audio-caption">NEXORA · LISTENING ROOM</span></div>
+          <div class="stage-gradient"></div><button class="stage-play" id="center-play" type="button" aria-label="Play"><span>▶</span></button>
+          <div class="buffering" id="player-loader" hidden><i></i></div><div class="stage-error" id="player-error" hidden></div>
+          <div class="player-info-card" id="player-info-card" hidden><span>MEDIA DETAILS</span><strong id="info-name"></strong><p id="info-path"></p><p id="info-format"></p></div>
+          <div class="player-controls" id="controls">
+            <div class="timeline-wrap"><div class="timeline-range"><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Playback position"></div><div class="timeline-times"><span id="time-now">0:00</span><span id="time-total">0:00</span></div></div>
+            <div class="control-deck">
+              <div class="deck-left"><button class="transport-button" id="previous-track" type="button" title="Previous" aria-label="Previous">|◀</button><button class="transport-button" id="back10" type="button" title="Back 10 seconds" aria-label="Back 10 seconds">↶<small>10</small></button><button class="play-button" id="play" type="button" aria-label="Play"><span>▶</span></button><button class="transport-button" id="forward30" type="button" title="Forward 30 seconds" aria-label="Forward 30 seconds">↷<small>30</small></button><button class="transport-button" id="next-track" type="button" title="Next" aria-label="Next">▶|</button></div>
+              <div class="deck-right"><div class="volume-control"><button class="transport-button" id="mute" type="button" aria-label="Mute">◖))</button><input id="volume" type="range" min="0" max="1" step="0.01" value="1" aria-label="Volume"></div><button class="utility-button" id="shuffle" type="button" aria-pressed="false" title="Shuffle">⤨</button><button class="utility-button" id="repeat" type="button" aria-pressed="false" title="Repeat current title">↻</button><button class="utility-button active" id="autoplay" type="button" aria-pressed="true" title="Autoplay next">AUTO</button><label class="speed-select">SPEED <select id="speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option></select></label><button class="utility-button" id="pip" type="button" title="Picture in picture">▣</button><button class="utility-button" id="fullscreen" type="button" title="Fullscreen">⛶</button></div>
+            </div>
+          </div>
+        </div>
+        <aside class="up-next-panel" id="up-next-panel"><div class="up-next-heading"><span>UP NEXT</span><small id="queue-count">0 ITEMS</small></div><div id="up-next-list" class="up-next-list"></div></aside>
+      </div>
+      <div class="player-footer"><span id="player-file-label">NEXORA PLAYER</span><span>SPACE PLAY / PAUSE · ← → SEEK · F FULLSCREEN</span></div>
+    </div>
+  </div>
+
+  <div class="mini-player" id="mini-player" hidden><div class="mini-art" id="mini-art">♫</div><div class="mini-copy"><strong id="mini-title">Now playing</strong><small id="mini-subtitle">NEXORA</small></div><button id="mini-play" type="button" aria-label="Play or pause">Ⅱ</button><button id="mini-expand" type="button" aria-label="Expand player">↗</button><button id="mini-close" type="button" aria-label="Close player">×</button></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
