@@ -1,7 +1,0 @@
-node_modules/
-assets/thumbnails/*
-!assets/thumbnails/.gitkeep
-assets/previews/*
-!assets/previews/.gitkeep
-npm-debug.log*
-.DS_Store
