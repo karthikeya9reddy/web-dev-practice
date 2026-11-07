@@ -1,8 +1,8 @@
 {
   "name": "nexora-media-server",
-  "version": "7.7.3",
+  "version": "7.8.3",
   "private": true,
-  "description": "NEXORA Midnight Cinema \u2014 mobile-safe Discover preview playback recovery and desktop rendering refinement",
+  "description": "NEXORA Midnight Cinema \u2014 one shared featured-video ambience sequence; quote panel removed",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

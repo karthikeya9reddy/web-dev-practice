@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;650;700;750;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=7.7.3">
-  <script defer src="/script.js?v=7.7.3"></script>
+  <link rel="stylesheet" href="/style.css?v=7.8.3">
+  <script defer src="/script.js?v=7.8.3"></script>
 </head>
 <body>
   <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
@@ -72,17 +72,16 @@
 
   <main>
     <section class="hero" id="hero" aria-label="Discover">
-      <div class="hero-bg hero-bg-a active" id="bg-a"></div>
-      <div class="hero-bg hero-bg-b" id="bg-b"></div>
       <video id="preview-player" class="preview-video" muted playsinline preload="none" aria-hidden="true" tabindex="-1"></video>
       <div class="hero-shade"></div>
       <div class="hero-content">
-        <p class="eyebrow" id="hero-kicker"><i></i> A MOMENT TO DISCOVER</p>
-        <h1 id="hero-quote">Stories worth staying for.</h1>
-        <p class="hero-description" id="hero-desc">Your personal collection, ready for its next story.</p>
+        <p class="eyebrow" id="hero-kicker"><i></i> SELECTED FROM YOUR LIBRARY</p>
+        <h1 id="hero-title" aria-label="Featured video title"></h1>
+        <p class="hero-description" id="hero-desc">A preview from your personal collection.</p>
         <div class="hero-actions" id="hero-ctas" aria-label="Featured title actions"></div>
       </div>
     </section>
+
 
     <section class="home-section" id="continue-section" hidden>
       <div class="section-heading"><div><p class="eyebrow">PICK UP WHERE YOU LEFT OFF</p><h2>Continue watching<span>.</span></h2></div><span class="section-note" id="continue-note"></span></div>
@@ -105,14 +104,6 @@
     </section>
 
     <section class="collection-page" id="collection" hidden aria-live="polite">
-      <aside class="ambient-quote" id="ambient-quote" aria-live="polite" aria-atomic="true">
-        <div class="ambient-quote-copy">
-          <span class="ambient-quote-label">A MOMENT BETWEEN STORIES</span>
-          <p class="ambient-quote-text" id="ambient-quote-text">Stories worth staying for.</p>
-          <span class="ambient-quote-description" id="ambient-quote-description">Your personal collection, ready for its next story.</span>
-        </div>
-        <span class="ambient-quote-count" id="ambient-quote-count">01 / 08</span>
-      </aside>
       <div class="collection-topline">
         <div class="collection-title-block"><p class="eyebrow" id="collection-kicker">YOUR COLLECTION</p><h1 id="collection-title">Movies<span>.</span></h1><p class="collection-description" id="collection-desc">Explore your collection.</p></div>
         <div class="collection-count" id="result-count">0 TITLES</div>

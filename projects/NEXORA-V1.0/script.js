@@ -15,17 +15,6 @@
     favourites: "Favourites"
   };
 
-  const QUOTES = [
-    ["Stories worth staying for.", "Your personal collection, ready for its next story.", "photo-1470252649378-9c29740c9fa8", "warm"],
-    ["Some stories never leave us.", "Return to the moments that made you feel everything.", "photo-1500530855697-b586d89ba3ee", "green"],
-    ["Escape into another universe.", "Find a world that feels a little like your own.", "photo-1462331940025-496dfbfc7564", "violet"],
-    ["Every frame holds a thousand emotions.", "A little wonder, a little nostalgia, a lot of imagination.", "photo-1478720568477-152d9b164e26", "blue"],
-    ["Not all journeys need a destination.", "Let the story take you somewhere unexpected.", "photo-1500534623283-312aade485b7", "green"],
-    ["The night is yours to explore.", "Settle in and let something unexpected find you.", "photo-1519608487953-e999c86e7455", "violet"],
-    ["Somewhere, a new world is waiting.", "Leave the familiar behind for a little while.", "photo-1446776811953-b23d57bd21aa", "blue"],
-    ["Keep the moments that matter.", "The story changes. The feeling stays.", "photo-1518837695005-2083093ee35b", "warm"]
-  ];
-
   function safeRead(key, fallback) {
     try {
       const value = JSON.parse(localStorage.getItem(key));
@@ -59,13 +48,13 @@
     sort: "recent",
     favourites: new Set(Array.isArray(storedFavourites) ? storedFavourites : []),
     progress: storedProgress && typeof storedProgress === "object" ? storedProgress : {},
-    quoteIndex: 0,
-    ambientTimer: null,
     ambientBackIndex: 0,
-    ambientTransitionToken: 0,
-    heroTransitionToken: 0,
-    heroCycle: 0,
+    ambientObjectUrl: null,
+    ambientCaptureToken: 0,
+    ambientCaptureTimer: null,
+    ambientPreviewTimer: null,
     heroFeaturedId: null,
+    featuredSequenceLastId: null,
     heroTimer: null,
     heroPreviewWaiting: false,
     heroPreviewFailsafeTimer: null,
@@ -74,10 +63,8 @@
     previewToken: 0,
     previewAbort: null,
     previewStartTimer: null,
-    previewPosterHoldTimer: null,
     previewPlaybackStartTimer: null,
     previewPlaybackWatchdog: null,
-    heroPreviewEnded: false,
     cardPreviewToken: 0,
     cardPreviewAbort: null,
     cardPreviewStartTimer: null,
@@ -90,7 +77,6 @@
     activeHoverCard: null,
     typingTimer: null,
     typingToken: 0,
-    heroBackIndex: 0,
     queue: [],
     queueIndex: 0,
     queueRegistry: new Map(),
@@ -234,57 +220,16 @@
     return `/api/preview?path=${encodeURIComponent(file.path)}&duration=${seconds}&quality=${quality}&v=6`;
   }
 
-  function ambientMood(page, genre) {
-    const value = `${page} ${genre}`.toLowerCase();
-    if (/anime|music|sci.?fi/.test(value)) return "violet";
-    if (/document|nature|forest/.test(value)) return "green";
-    if (/romance|comedy|song/.test(value)) return "warm";
-    if (/horror|thriller/.test(value)) return "red";
-    if (/action|movie|series/.test(value)) return "blue";
-    return "neutral";
-  }
-
-  function cinematicImage(assetId, width = 2200) {
-    return `https://images.unsplash.com/${assetId}?auto=format&fit=crop&w=${width}&q=86`;
-  }
-
-  const backgroundImageCache = new Map();
-
-  function preloadBackgroundImage(url) {
-    if (!url) return Promise.resolve(false);
-    if (backgroundImageCache.has(url)) return backgroundImageCache.get(url);
-    const promise = new Promise(resolve => {
-      const image = new Image();
-      image.decoding = "async";
-      try { image.fetchPriority = "high"; } catch { /* Older browsers ignore this hint. */ }
-      const finish = async success => {
-        if (!success) return resolve(false);
-        // Decode before the crossfade starts so desktop does not have to decode
-        // a large image on the same frame that opacity animation begins.
-        if (typeof image.decode === "function") {
-          try { await image.decode(); } catch { /* onload still confirms a usable image. */ }
-        }
-        resolve(image.naturalWidth > 0);
-      };
-      image.onload = () => { void finish(true); };
-      image.onerror = () => resolve(false);
-      image.src = url;
-      if (image.complete && image.naturalWidth > 0) void finish(true);
-    });
-    backgroundImageCache.set(url, promise);
-    promise.then(loaded => { if (!loaded) backgroundImageCache.delete(url); });
-    if (backgroundImageCache.size > 28) {
-      const oldest = backgroundImageCache.keys().next().value;
-      if (oldest !== url) backgroundImageCache.delete(oldest);
-    }
-    return promise;
-  }
-
-  function applyAmbience(imageUrl, mood = "neutral") {
+  function applyAmbience(imageUrl, mood = "neutral", rgb = null) {
+    if (!imageUrl) return;
     const cssImage = `url("${imageUrl}")`;
     const root = document.documentElement;
     root.dataset.mood = mood;
+    if (Array.isArray(rgb) && rgb.length === 3) {
+      root.style.setProperty("--ambient", rgb.map(value => Math.max(0, Math.min(255, Math.round(value)))).join(", "));
+    }
     root.style.setProperty("--ambient-image", cssImage);
+
     const next = state.ambientBackIndex ? byId("ambient-a") : byId("ambient-b");
     const old = state.ambientBackIndex ? byId("ambient-b") : byId("ambient-a");
     if (next) {
@@ -293,12 +238,99 @@
     }
     old?.classList.remove("active");
     state.ambientBackIndex = 1 - state.ambientBackIndex;
+
+    const previousUrl = state.ambientObjectUrl;
+    state.ambientObjectUrl = imageUrl.startsWith("blob:") ? imageUrl : null;
+    if (previousUrl && previousUrl !== imageUrl) {
+      // Allow both the ambient layers and body backdrop to finish crossfading.
+      window.setTimeout(() => URL.revokeObjectURL(previousUrl), 1900);
+    }
   }
 
-  /* ---------- Isolated Discover hero + card-hover preview engines ---------- */
+  function moodFromRgb(rgb) {
+    const [r, g, b] = rgb;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+    if (delta < 22 || max < 50) return "neutral";
+    let hue = 0;
+    if (max === r) hue = ((g - b) / delta) % 6;
+    else if (max === g) hue = (b - r) / delta + 2;
+    else hue = (r - g) / delta + 4;
+    hue = (hue * 60 + 360) % 360;
+    if (hue < 18 || hue >= 345) return "red";
+    if (hue < 62) return "warm";
+    if (hue < 165) return "green";
+    if (hue < 255) return "blue";
+    return "violet";
+  }
+
+  function capturePreviewAmbience(file, captureToken) {
+    if (!file || captureToken !== state.ambientCaptureToken) return;
+    if (!["hero", "ambience"].includes(state.activePreviewKind) || state.activePreviewFile?.id !== file.id) return;
+    if (previewVideo.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !previewVideo.videoWidth || !previewVideo.videoHeight) return;
+
+    try {
+      const width = 720;
+      const height = Math.max(1, Math.round(width * previewVideo.videoHeight / previewVideo.videoWidth));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d", { alpha: false, desynchronized: true });
+      if (!context) return;
+      context.drawImage(previewVideo, 0, 0, width, height);
+
+      // Sample a tiny frame for its dominant colour without reading the full image.
+      const sample = document.createElement("canvas");
+      sample.width = 40;
+      sample.height = 23;
+      const sampleContext = sample.getContext("2d", { willReadFrequently: true });
+      if (!sampleContext) return;
+      sampleContext.drawImage(canvas, 0, 0, sample.width, sample.height);
+      const pixels = sampleContext.getImageData(0, 0, sample.width, sample.height).data;
+      let red = 0, green = 0, blue = 0, count = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+        const brightness = (r + g + b) / 3;
+        if (brightness < 24) continue;
+        red += r; green += g; blue += b; count++;
+      }
+      const rgb = count ? [red / count, green / count, blue / count] : [88, 114, 153];
+      const mood = moodFromRgb(rgb);
+      canvas.toBlob(blob => {
+        if (!blob || captureToken !== state.ambientCaptureToken || state.activePreviewFile?.id !== file.id || !["hero", "ambience"].includes(state.activePreviewKind)) return;
+        const imageUrl = URL.createObjectURL(blob);
+        applyAmbience(imageUrl, mood, rgb);
+      }, "image/jpeg", 0.78);
+    } catch (error) {
+      // Same-origin preview URLs should be canvas-readable. If a browser blocks
+      // frame extraction, retain the last good global ambience without failing playback.
+      console.info("[NEXORA] Preview ambience frame was unavailable:", error?.name || error);
+    }
+  }
+
+  function schedulePreviewAmbience(file) {
+    clearTimeout(state.ambientCaptureTimer);
+    const token = ++state.ambientCaptureToken;
+    let attempts = 0;
+    const captureWhenReady = () => {
+      if (token !== state.ambientCaptureToken || state.activePreviewFile?.id !== file.id || !["hero", "ambience"].includes(state.activePreviewKind)) return;
+      const hasFrame = previewVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        previewVideo.videoWidth > 0 && previewVideo.videoHeight > 0 &&
+        !previewVideo.paused && previewVideo.currentTime >= 0.45;
+      if (hasFrame) {
+        capturePreviewAmbience(file, token);
+        return;
+      }
+      if (++attempts < 10) state.ambientCaptureTimer = window.setTimeout(captureWhenReady, 260);
+    };
+    state.ambientCaptureTimer = window.setTimeout(captureWhenReady, 900);
+  }
+
+  /* ---------- Shared hero / global ambience preview + isolated card-hover engine ---------- */
 
   function resetPreviewElement() {
-    previewVideo.classList.remove("is-visible", "is-ended-frame", "is-fading-out", "hero-preview", "card-preview");
+    previewVideo.classList.remove("is-visible", "is-fading-out", "hero-preview", "card-preview", "ambience-preview-source");
     previewVideo.pause();
     previewVideo.removeAttribute("src");
     previewVideo.removeAttribute("poster");
@@ -307,12 +339,15 @@
     state.activePreviewTarget = null;
     state.activePreviewFile = null;
     state.activePreviewKind = null;
-    state.heroPreviewEnded = false;
   }
 
   function stopActivePreview() {
+    clearTimeout(state.ambientPreviewTimer);
+    state.ambientPreviewTimer = null;
+    clearTimeout(state.ambientCaptureTimer);
+    state.ambientCaptureTimer = null;
+    state.ambientCaptureToken += 1;
     clearTimeout(state.previewStartTimer);
-    clearTimeout(state.previewPosterHoldTimer);
     clearTimeout(state.heroPreviewFailsafeTimer);
     state.heroPreviewFailsafeTimer = null;
     clearTimeout(state.previewPlaybackStartTimer);
@@ -346,25 +381,6 @@
     resetCardPreviewElement();
   }
 
-  function offerPreviewRetry(token, target, file) {
-    if (token !== state.previewToken || state.page !== "discover" || !target.isConnected) return;
-    const actions = byId("hero-ctas");
-    if (!actions || byId("hero-preview-retry")) return;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.id = "hero-preview-retry";
-    button.className = "hero-action-preview";
-    button.textContent = "Retry preview";
-    button.addEventListener("click", () => {
-      if (token !== state.previewToken || !previewVideo.isConnected) return;
-      previewVideo.play().catch(error => {
-        console.warn("[NEXORA] Manual hero preview playback was blocked:", error.name, error.message);
-        toast("The browser could not start this preview. The still image remains available.");
-      });
-    }, { once: true });
-    actions.appendChild(button);
-  }
-
   function releaseHeroPreviewHold(fileId) {
     if (fileId && state.heroFeaturedId !== fileId) return;
     if (!state.heroPreviewWaiting) return;
@@ -379,22 +395,23 @@
     }
   }
 
-  function startHeroPreview(file) {
-    if (state.page !== "discover" || !file || file.type !== "video") {
-      releaseHeroPreviewHold(file?.id);
+  function startHeroPreview(file, options = {}) {
+    const ambienceOnly = options.ambienceOnly === true;
+    if ((!ambienceOnly && state.page !== "discover") ||
+        (ambienceOnly && (state.page === "discover" || !playerLayer.hidden)) ||
+        !file || file.type !== "video") {
+      if (!ambienceOnly) releaseHeroPreviewHold(file?.id);
       return;
     }
 
-    const target = byId("hero");
-    if (!target || target.hidden || !target.isConnected) {
-      releaseHeroPreviewHold(file.id);
+    const target = ambienceOnly ? document.body : byId("hero");
+    if (!target || !target.isConnected || (!ambienceOnly && target.hidden)) {
+      if (!ambienceOnly) releaseHeroPreviewHold(file.id);
       return;
     }
 
     stopActivePreview();
     const token = state.previewToken;
-    const posterHoldMs = 3000;
-    let posterHoldComplete = false;
     let firstFrameReady = false;
     let crossfadeStarted = false;
     let playbackRequested = false;
@@ -406,10 +423,11 @@
 
     state.activePreviewTarget = target;
     state.activePreviewFile = file;
-    state.activePreviewKind = "hero";
-    state.heroPreviewEnded = false;
+    state.activePreviewKind = ambienceOnly ? "ambience" : "hero";
 
-    previewVideo.className = "preview-video hero-preview";
+    previewVideo.className = ambienceOnly
+      ? "preview-video ambience-preview-source"
+      : "preview-video hero-preview";
     previewVideo.muted = true;
     previewVideo.defaultMuted = true;
     previewVideo.volume = 0;
@@ -431,9 +449,11 @@
       token === state.previewToken &&
       state.activePreviewTarget === target &&
       state.activePreviewFile?.id === file.id &&
+      state.activePreviewKind === (ambienceOnly ? "ambience" : "hero") &&
       target.isConnected &&
-      state.page === "discover" &&
-      state.heroFeaturedId === file.id &&
+      (ambienceOnly
+        ? state.page !== "discover"
+        : state.page === "discover" && state.heroFeaturedId === file.id) &&
       playerLayer.hidden &&
       !document.hidden;
 
@@ -444,14 +464,14 @@
       state.previewPlaybackWatchdog = null;
     };
 
-    const failToPoster = reason => {
+    const skipPreview = reason => {
       if (!isCurrent() || endedHandled) return;
       endedHandled = true;
       clearPlaybackWatchdogs();
-      byId("hero-preview-retry")?.remove();
-      console.warn(`[NEXORA] Discover preview fallback for ${titleOf(file)}: ${reason}`);
+      console.warn(`[NEXORA] Skipping ${ambienceOnly ? "ambience" : "Discover"} preview for ${titleOf(file)}: ${reason}`);
       stopActivePreview();
-      releaseHeroPreviewHold(file.id);
+      if (ambienceOnly) scheduleAmbientPreviewAdvance(950);
+      else releaseHeroPreviewHold(file.id);
     };
 
     const finishPreview = () => {
@@ -459,10 +479,12 @@
       endedHandled = true;
       clearPlaybackWatchdogs();
       previewVideo.pause();
-      state.heroPreviewEnded = true;
-      previewVideo.classList.add("is-ended-frame");
-      byId("hero-preview-retry")?.remove();
-      releaseHeroPreviewHold(file.id);
+      if (ambienceOnly) {
+        stopActivePreview();
+        scheduleAmbientPreviewAdvance(700);
+      } else {
+        releaseHeroPreviewHold(file.id);
+      }
     };
 
     const markPlaybackStarted = () => {
@@ -475,10 +497,10 @@
       state.previewPlaybackStartTimer = null;
       previewVideo.classList.add("is-visible");
       previewVideo.dataset.playRequested = "true";
+      schedulePreviewAmbience(file);
 
-      // Some browsers can pause or stall a muted inline preview without
-      // delivering `ended`. Keep a bounded watchdog so Discover never freezes
-      // on the featured title forever. Normal playback is released by ended.
+      // The same bounded watchdog protects both visible hero playback and the
+      // quiet background ambience cycle without creating another video decoder.
       state.previewPlaybackWatchdog = window.setInterval(() => {
         if (!isCurrent() || endedHandled) {
           clearPlaybackWatchdogs();
@@ -501,16 +523,16 @@
 
         const stalledFor = now - lastProgressAt;
         if (previewVideo.paused && stalledFor > 3500) {
-          failToPoster("preview paused before its ending");
+          skipPreview("preview paused before its ending");
           return;
         }
         if (stalledFor > 9000) {
-          failToPoster("preview playback stopped progressing");
+          skipPreview("preview playback stopped progressing");
           return;
         }
         const maxRunMs = Math.max(22000, ((Number.isFinite(duration) && duration > 0 ? duration : 8) + 14) * 1000);
         if (now - playbackStartedAt > maxRunMs) {
-          failToPoster("preview exceeded its playback safety limit");
+          skipPreview("preview exceeded its playback safety limit");
         }
       }, 1000);
     };
@@ -520,32 +542,20 @@
       previewVideo.dataset.playRequested = "false";
       previewVideo.classList.remove("is-visible");
       clearPlaybackWatchdogs();
-      if (error?.name === "NotAllowedError") {
-        offerPreviewRetry(token, target, file);
-        state.previewPlaybackStartTimer = setTimeout(
-          () => failToPoster("browser autoplay permission was not granted"),
-          8000
-        );
-      } else {
-        failToPoster(`${error?.name || "PlaybackError"}: ${error?.message || "playback could not start"}`);
-      }
+      skipPreview(`${error?.name || "PlaybackError"}: ${error?.message || "playback could not start"}`);
     };
 
     const requestPlaybackAndReveal = () => {
-      if (!isCurrent() || !posterHoldComplete || crossfadeStarted || playbackRequested) return;
+      if (!isCurrent() || crossfadeStarted || playbackRequested) return;
       crossfadeStarted = true;
       playbackRequested = true;
       previewVideo.dataset.playRequested = "true";
 
-      // Request playback as soon as the still has had its full three seconds.
-      // Do not make playback depend on loadeddata/canplay event ordering: those
-      // events differ across mobile browsers. The still remains above the video
-      // until the browser confirms that playback has actually started.
       requestAnimationFrame(() => {
         if (!isCurrent() || endedHandled) return;
         state.previewPlaybackStartTimer = setTimeout(() => {
           if (isCurrent() && !playbackStarted) {
-            failToPoster("preview did not begin after playback was requested");
+            skipPreview("preview did not begin after playback was requested");
           }
         }, 9000);
 
@@ -572,8 +582,6 @@
       if (!previewVideo.videoWidth || !previewVideo.videoHeight) return;
       firstFrameReady = true;
       previewVideo.dataset.firstFrameReady = "true";
-      // Readiness events are diagnostic only. Playback is requested by the
-      // 3-second poster timer, not gated on event ordering or frame callbacks.
     };
 
     const listenerOptions = { signal: controller.signal };
@@ -581,7 +589,7 @@
       if (!isCurrent()) return;
       const dimensions = `${previewVideo.videoWidth}×${previewVideo.videoHeight}`;
       previewVideo.dataset.previewResolution = dimensions;
-      console.info(`[NEXORA] Discover hero preview: ${dimensions}`);
+      if (!ambienceOnly) console.info(`[NEXORA] Discover hero preview: ${dimensions}`);
     }, listenerOptions);
     previewVideo.addEventListener("loadeddata", markFirstFrameReady, listenerOptions);
     previewVideo.addEventListener("canplay", markFirstFrameReady, listenerOptions);
@@ -595,19 +603,34 @@
     }, listenerOptions);
     previewVideo.addEventListener("ended", finishPreview, { once: true, signal: controller.signal });
     previewVideo.addEventListener("error", () => {
-      if (isCurrent()) failToPoster(previewVideo.error?.message || "video could not be decoded or loaded");
+      if (isCurrent()) skipPreview(previewVideo.error?.message || "video could not be decoded or loaded");
     }, { once: true, signal: controller.signal });
 
     target.appendChild(previewVideo);
-    previewVideo.src = previewURL(file, 8, 1080);
+    // The hero retains its full 1080p-capable source; background-only ambience
+    // needs fewer pixels because it is blurred, so keep that cycle lightweight.
+    previewVideo.src = previewURL(file, 8, ambienceOnly ? 720 : 1080);
     previewVideo.load();
+    requestPlaybackAndReveal();
+  }
 
-    // The three-second hold begins after showFeatured's still-image crossfade
-    // has completed. If decoding takes longer, the quality thumbnail remains.
-    state.previewPosterHoldTimer = setTimeout(() => {
-      posterHoldComplete = true;
-      requestPlaybackAndReveal();
-    }, posterHoldMs);
+  function scheduleAmbientPreviewAdvance(delay = 700) {
+    clearTimeout(state.ambientPreviewTimer);
+    state.ambientPreviewTimer = window.setTimeout(() => {
+      state.ambientPreviewTimer = null;
+      startAmbientPreviewCycle();
+    }, delay);
+  }
+
+  function startAmbientPreviewCycle(options = {}) {
+    if (state.page === "discover" || document.hidden || !playerLayer.hidden) return;
+    if (state.activePreviewKind === "ambience" && state.activePreviewFile) return;
+    const resumeCurrent = options.resumeCurrent === true
+      ? state.fileById.get(state.featuredSequenceLastId)
+      : null;
+    const next = resumeCurrent || chooseFeaturedFile();
+    if (!next) return;
+    startHeroPreview(next, { ambienceOnly: true });
   }
 
   function startCardPreview(card) {
@@ -744,9 +767,9 @@
     clearTimeout(state.typingTimer);
   }
 
-  function typeQuote(text, onComplete = () => {}, holdUntilPreviewEnds = false) {
+  function typeHeroTitle(text, onComplete = () => {}, holdUntilPreviewEnds = false) {
     clearTimeout(state.typingTimer);
-    const heading = byId("hero-quote");
+    const heading = byId("hero-title");
     const token = ++state.typingToken;
     let index = 0;
     const typeDelay = window.matchMedia("(max-width: 600px)").matches ? 78 : 68;
@@ -791,157 +814,9 @@
     write();
   }
 
-  function cssTimeToMs(value) {
-    const text = String(value || "0s").trim();
-    if (text.endsWith("ms")) return Math.max(0, Number.parseFloat(text) || 0);
-    if (text.endsWith("s")) return Math.max(0, (Number.parseFloat(text) || 0) * 1000);
-    return 0;
-  }
-
-  function waitForOpacityTransition(element, fallbackMs = 2600) {
-    if (!element) return Promise.resolve();
-    const styles = getComputedStyle(element);
-    const properties = styles.transitionProperty.split(",").map(value => value.trim());
-    const durations = styles.transitionDuration.split(",").map(cssTimeToMs);
-    const delays = styles.transitionDelay.split(",").map(cssTimeToMs);
-    let longest = 0;
-    properties.forEach((property, index) => {
-      if (property !== "opacity" && property !== "all") return;
-      const duration = durations[index % Math.max(1, durations.length)] || 0;
-      const delay = delays[index % Math.max(1, delays.length)] || 0;
-      longest = Math.max(longest, duration + delay);
-    });
-    if (longest <= 16) return new Promise(resolve => setTimeout(resolve, 32));
-
-    return new Promise(resolve => {
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(fallback);
-        element.removeEventListener("transitionend", onEnd);
-        resolve();
-      };
-      const onEnd = event => {
-        if (event.target === element && event.propertyName === "opacity") finish();
-      };
-      const fallback = setTimeout(finish, Math.min(fallbackMs, longest + 120));
-      element.addEventListener("transitionend", onEnd);
-    });
-  }
-
-  async function swapHeroBackground(imageUrl, mood = "neutral", fallbackUrl = null) {
-    const token = ++state.heroTransitionToken;
-    let selectedUrl = imageUrl;
-    let loaded = await preloadBackgroundImage(selectedUrl);
-    if (!loaded && fallbackUrl) {
-      selectedUrl = fallbackUrl;
-      loaded = await preloadBackgroundImage(selectedUrl);
-    }
-    if (token !== state.heroTransitionToken || state.page !== "discover") return false;
-    if (!loaded) return false;
-
-    const next = state.heroBackIndex ? byId("bg-a") : byId("bg-b");
-    const old = state.heroBackIndex ? byId("bg-b") : byId("bg-a");
-    // Stage the decoded image on an inactive layer, then commit on a clean
-    // paint boundary. The new scene is not considered visible until its
-    // opacity crossfade has actually completed.
-    next.classList.remove("active");
-    next.style.backgroundImage = `url("${selectedUrl}")`;
-    next.style.backgroundSize = "cover";
-    next.style.backgroundPosition = "center 43%";
-    next.style.backgroundRepeat = "no-repeat";
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    if (token !== state.heroTransitionToken || state.page !== "discover") return false;
-    next.classList.add("active");
-    old.classList.remove("active");
-    state.heroBackIndex = 1 - state.heroBackIndex;
-    applyAmbience(selectedUrl, mood);
-    await waitForOpacityTransition(next);
-    return token === state.heroTransitionToken && state.page === "discover";
-  }
-
-  function showAmbientQuote(index) {
-    state.quoteIndex = (index + QUOTES.length) % QUOTES.length;
-    const quote = QUOTES[state.quoteIndex];
-    const imageUrl = cinematicImage(quote[2]);
-    const token = ++state.ambientTransitionToken;
-    const panel = byId("ambient-quote");
-    const text = byId("ambient-quote-text");
-    const description = byId("ambient-quote-description");
-    const count = byId("ambient-quote-count");
-    panel?.classList.add("is-changing");
-    window.setTimeout(() => {
-      if (token !== state.ambientTransitionToken || state.page === "discover") return;
-      if (text) text.textContent = quote[0];
-      if (description) description.textContent = quote[1];
-      if (count) count.textContent = `${String(state.quoteIndex + 1).padStart(2, "0")} / ${String(QUOTES.length).padStart(2, "0")}`;
-      requestAnimationFrame(() => panel?.classList.remove("is-changing"));
-    }, 180);
-    preloadBackgroundImage(imageUrl).then(loaded => {
-      if (loaded && token === state.ambientTransitionToken && state.page !== "discover") {
-        applyAmbience(imageUrl, quote[3]);
-      }
-    });
-  }
-
-  function ensureAmbientRotation() {
-    if (state.page === "discover" || document.hidden || state.ambientTimer) return;
-    state.ambientTimer = setTimeout(() => {
-      state.ambientTimer = null;
-      showAmbientQuote(state.quoteIndex + 1);
-      ensureAmbientRotation();
-    }, 14500);
-  }
-
-  function stopAmbientRotation() {
-    clearTimeout(state.ambientTimer);
-    state.ambientTimer = null;
-  }
-
   function setHeroActions(markup) {
     const actions = byId("hero-ctas");
-    if (!actions) return;
-    actions.innerHTML = markup;
-  }
-
-  function advanceHero() {
-    if (state.page !== "discover" || document.hidden) return;
-    if (state.activeHoverCard?.isConnected) {
-      state.heroTimer = setTimeout(advanceHero, 1200);
-      return;
-    }
-    state.heroCycle += 1;
-    const featured = chooseFeaturedFile();
-    if (featured && state.heroCycle % 2 === 0) showFeatured(featured);
-    else showQuote(state.quoteIndex + 1);
-  }
-
-  function showQuote(index) {
-    if (state.page !== "discover") return;
-    const keepEndedFrame = state.heroPreviewEnded && state.activePreviewKind === "hero" && previewVideo.isConnected;
-    if (keepEndedFrame) previewVideo.classList.add("is-fading-out");
-    state.heroPreviewWaiting = false;
-    state.heroErasePending = false;
-    state.heroResumeAfterPreview = null;
-    if (!keepEndedFrame) stopActivePreview();
-    state.heroFeaturedId = null;
-    state.quoteIndex = (index + QUOTES.length) % QUOTES.length;
-    const quote = QUOTES[state.quoteIndex];
-    const imageUrl = cinematicImage(quote[2]);
-    const transition = swapHeroBackground(imageUrl, quote[3]);
-
-    byId("hero-kicker").textContent = "A MOMENT TO DISCOVER";
-    byId("hero-desc").textContent = quote[1];
-    setHeroActions(`
-      <button class="hero-action-primary" type="button" id="hero-explore">Explore collection <svg class="icon"><use href="#i-arrow-up-right"/></svg></button>
-    `);
-    byId("hero-explore").addEventListener("click", () => navigate("library"), { once: true });
-    transition.then(shown => {
-      if (!shown || state.page !== "discover" || state.quoteIndex !== ((index + QUOTES.length) % QUOTES.length)) return;
-      if (keepEndedFrame) stopActivePreview();
-      typeQuote(quote[0], advanceHero);
-    });
+    if (actions) actions.innerHTML = markup;
   }
 
   function pageForCategory(category) {
@@ -951,39 +826,67 @@
     return found ? found[0] : "library";
   }
 
+  function advanceHero() {
+    if (state.page !== "discover" || document.hidden) return;
+    if (state.activeHoverCard?.isConnected) {
+      state.heroTimer = setTimeout(advanceHero, 1200);
+      return;
+    }
+    const featured = chooseFeaturedFile();
+    if (featured) showFeatured(featured);
+    else showEmptyHero();
+  }
+
+  function showEmptyHero() {
+    clearHeroTimers();
+    state.typingToken += 1;
+    state.heroPreviewWaiting = false;
+    state.heroErasePending = false;
+    state.heroResumeAfterPreview = null;
+    state.heroFeaturedId = null;
+    stopActivePreview();
+
+    const heading = byId("hero-title");
+    heading.classList.remove("typing");
+    heading.hidden = false;
+    heading.setAttribute("aria-label", "Your collection is ready");
+    heading.textContent = "Your next story starts here.";
+    byId("hero-kicker").innerHTML = "<i></i> YOUR PERSONAL COLLECTION";
+    byId("hero-desc").textContent = "Add a video to your library and it will find its place here.";
+    setHeroActions(`
+      <button class="hero-action-primary" type="button" id="hero-explore">Explore collection <svg class="icon"><use href="#i-arrow-up-right"/></svg></button>
+    `);
+    byId("hero-explore")?.addEventListener("click", () => navigate("library"), { once: true });
+  }
+
   function chooseFeaturedFile() {
-    const candidates = state.files.filter(file => file.type === "video");
-    if (!candidates.length) return null;
-    let pool = candidates.filter(file => file.id !== state.heroFeaturedId);
-    if (!pool.length) pool = candidates;
-    const ordered = sortFiles(pool);
-    // Mix recent additions with a little randomness so the hero feels alive.
-    const windowSize = Math.min(12, ordered.length);
-    const pick = ordered[Math.floor(Math.random() * windowSize)];
-    return pick || ordered[0] || null;
+    // One shared sequence drives both the visible Discover hero and the
+    // invisible preview used for global ambience on collection pages.
+    const ordered = state.files
+      .filter(file => file.type === "video")
+      .sort((a, b) => titleOf(a).localeCompare(titleOf(b)) || a.id.localeCompare(b.id));
+    if (!ordered.length) return null;
+    const currentIndex = ordered.findIndex(file => file.id === state.featuredSequenceLastId);
+    const next = ordered[(currentIndex + 1) % ordered.length] || ordered[0];
+    state.featuredSequenceLastId = next.id;
+    return next;
   }
 
   function showFeatured(file) {
-    if (!file || state.page !== "discover") return showQuote(state.quoteIndex);
-    const keepEndedFrame = state.heroPreviewEnded && state.activePreviewKind === "hero" && previewVideo.isConnected;
-    if (keepEndedFrame) previewVideo.classList.add("is-fading-out");
-    if (!keepEndedFrame) stopActivePreview();
+    if (!file || state.page !== "discover") return showEmptyHero();
+
+    clearHeroTimers();
+    state.heroPreviewWaiting = false;
+    state.heroErasePending = false;
+    state.heroResumeAfterPreview = null;
+    stopActivePreview();
     state.heroFeaturedId = file.id;
-    const mood = ambientMood(categoryOf(file), genreOf(file));
-    const moodBackgrounds = {
-      blue: "photo-1478720568477-152d9b164e26",
-      violet: "photo-1462331940025-496dfbfc7564",
-      green: "photo-1500530855697-b586d89ba3ee",
-      warm: "photo-1470252649378-9c29740c9fa8",
-      red: "photo-1519608487953-e999c86e7455",
-      neutral: "photo-1446776811953-b23d57bd21aa"
-    };
-    const fallbackImageUrl = cinematicImage(moodBackgrounds[mood] || moodBackgrounds.neutral);
-    const posterUrl = thumbnailURL(file, 1920, "preview");
-    // One preloaded poster fills the hero; cinematic imagery is fallback-only.
-    const transition = swapHeroBackground(posterUrl, mood, fallbackImageUrl);
-    byId("hero-kicker").textContent = "SELECTED FROM YOUR LIBRARY";
-    byId("hero-desc").textContent = `${categoryOf(file)}${genreOf(file) ? ` · ${genreOf(file).replace(/[-_]/g, " ")}` : ""} — A pick from your collection.`;
+
+    const heading = byId("hero-title");
+    heading.hidden = false;
+    heading.setAttribute("aria-label", `Featured video: ${titleOf(file)}`);
+    byId("hero-kicker").innerHTML = "<i></i> SELECTED FROM YOUR LIBRARY";
+    byId("hero-desc").textContent = `${categoryOf(file)}${genreOf(file) ? ` · ${genreOf(file).replace(/[-_]/g, " ")}` : ""} — A preview from your collection.`;
 
     const page = pageForCategory(categoryOf(file));
     const label = page === "library" ? "Explore collection" : `Explore ${categoryOf(file)}`;
@@ -991,49 +894,33 @@
       <button class="hero-action-primary" type="button" id="hero-play"><svg class="icon hero-play-icon"><use href="#i-play"/></svg> Play now</button>
       <button class="hero-action-secondary" type="button" id="hero-explore">${esc(label)} <svg class="icon"><use href="#i-arrow-up-right"/></svg></button>
     `);
-    byId("hero-play").addEventListener("click", () => {
+    byId("hero-play")?.addEventListener("click", () => {
       const queue = state.files.filter(item => item.type === "video" && categoryOf(item) === categoryOf(file));
       openPlayer(file, queue.length ? queue : [file]);
     }, { once: true });
-    byId("hero-explore").addEventListener("click", () => navigate(page), { once: true });
-    state.heroPreviewWaiting = true;
-    state.heroErasePending = false;
-    state.heroResumeAfterPreview = null;
-    transition.then(shown => {
-      if (state.page !== "discover" || state.heroFeaturedId !== file.id) return;
-      if (!shown) {
-        state.heroPreviewWaiting = false;
-        state.heroFeaturedId = null;
-        showQuote(state.quoteIndex + 1);
-        return;
-      }
-      if (keepEndedFrame) stopActivePreview();
-      typeQuote(titleOf(file), advanceHero, true);
-      startHeroPreview(file);
-      // Install the final safety release only after startHeroPreview has run
-      // its normal cleanup; otherwise that cleanup would clear this timer.
-      // This protects quote rotation if a mobile browser drops media events.
-      clearTimeout(state.heroPreviewFailsafeTimer);
-      state.heroPreviewFailsafeTimer = window.setTimeout(() => {
-        if (state.page !== "discover" || state.heroFeaturedId !== file.id || !state.heroPreviewWaiting) return;
-        console.warn(`[NEXORA] Releasing Discover sequence safety hold for ${titleOf(file)}.`);
-        stopActivePreview();
-        releaseHeroPreviewHold(file.id);
-      }, 45000);
-    });
-  }
+    byId("hero-explore")?.addEventListener("click", () => navigate(page), { once: true });
 
-  function scheduleQuote() {
-    clearHeroTimers();
-    if (state.page === "discover") showQuote(state.quoteIndex);
+    // Keep the title visible for the full video-preview duration. No poster,
+    // representative still, or static thumbnail is requested in the hero.
+    state.heroPreviewWaiting = true;
+    typeHeroTitle(titleOf(file), advanceHero, true);
+    startHeroPreview(file);
+
+    clearTimeout(state.heroPreviewFailsafeTimer);
+    state.heroPreviewFailsafeTimer = window.setTimeout(() => {
+      if (state.page !== "discover" || state.heroFeaturedId !== file.id || !state.heroPreviewWaiting) return;
+      console.warn(`[NEXORA] Releasing Discover sequence safety hold for ${titleOf(file)}.`);
+      stopActivePreview();
+      releaseHeroPreviewHold(file.id);
+    }, 45000);
   }
 
   function initHero() {
-    state.heroCycle = 0;
-    showQuote(0);
+    state.featuredSequenceLastId = null;
+    advanceHero();
   }
 
-    /* ---------- Data selection and filtering ---------- */
+  /* ---------- Data selection and filtering ---------- */
 
   function filesForPage(page = state.page) {
     if (page === "library") return [...state.files];
@@ -1089,15 +976,88 @@
     return key;
   }
 
+  function updateRowNavigation(wrapper) {
+    if (!wrapper) return;
+    const row = wrapper.querySelector(".media-row");
+    const previous = wrapper.querySelector(".row-nav-prev");
+    const next = wrapper.querySelector(".row-nav-next");
+    if (!row || !previous || !next) return;
+
+    const maximum = Math.max(0, row.scrollWidth - row.clientWidth);
+    const overflowing = maximum > 3 && !row.querySelector(".empty-state");
+    wrapper.classList.toggle("has-overflow", overflowing);
+    previous.hidden = !overflowing;
+    next.hidden = !overflowing;
+    previous.disabled = !overflowing || row.scrollLeft <= 2;
+    next.disabled = !overflowing || row.scrollLeft >= maximum - 2;
+  }
+
+  function setupHomeRowNavigation() {
+    const rows = $$("main .home-section .media-row");
+    rows.forEach(row => {
+      if (row.parentElement?.classList.contains("media-row-shell")) return;
+
+      const shell = document.createElement("div");
+      shell.className = "media-row-shell";
+      row.parentNode.insertBefore(shell, row);
+      shell.appendChild(row);
+
+      const createButton = (direction, label, pathData) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("type", "button");
+        button.className = `row-nav-button row-nav-${direction}`;
+        button.dataset.rowNavigation = direction;
+        button.setAttribute("aria-controls", row.id);
+        button.setAttribute("aria-label", label);
+        button.title = label;
+        button.disabled = true;
+        button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${pathData}"/></svg>`;
+        button.addEventListener("click", event => {
+          // A row arrow is navigation for its row only, never a form submit,
+          // anchor activation, card click, or page-level action.
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          if (button.disabled) return;
+          const distance = Math.max(240, row.clientWidth * 0.82);
+          const maximum = Math.max(0, row.scrollWidth - row.clientWidth);
+          const nextLeft = Math.max(0, Math.min(maximum, row.scrollLeft + (direction === "next" ? distance : -distance)));
+          const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          row.scrollTo({ left: nextLeft, behavior: reducedMotion ? "auto" : "smooth" });
+          requestAnimationFrame(() => updateRowNavigation(shell));
+        }, { capture: true });
+        shell.appendChild(button);
+        return button;
+      };
+
+      createButton("prev", "Scroll to previous titles", "m15 18-6-6 6-6");
+      createButton("next", "Scroll to next titles", "m9 18 6-6-6-6");
+      row.addEventListener("scroll", () => updateRowNavigation(shell), { passive: true });
+      updateRowNavigation(shell);
+    });
+
+    const refresh = () => $$(".media-row-shell").forEach(updateRowNavigation);
+    window.addEventListener("resize", refresh, { passive: true });
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(refresh);
+      $$(".media-row-shell .media-row").forEach(row => observer.observe(row));
+    }
+  }
+
   function renderCards(container, files, emptyText = "Nothing here yet.", compact = false) {
     if (!container) return;
     const signature = files.map(file => `${file.id}:${state.favourites.has(file.id) ? 1 : 0}`).join("|");
     registerQueue(container, files);
-    if (container.dataset.renderSignature === signature && container.childElementCount) return;
+    if (container.dataset.renderSignature === signature && container.childElementCount) {
+      requestAnimationFrame(() => updateRowNavigation(container.closest(".media-row-shell")));
+      return;
+    }
     if (state.activePreviewTarget && container.contains(state.activePreviewTarget)) stopActivePreview();
     if (state.activeHoverCard && container.contains(state.activeHoverCard)) stopCardPreview(state.activeHoverCard);
     container.innerHTML = files.length ? files.map(file => cardMarkup(file, compact)).join("") : `<p class="empty-state">${esc(emptyText)}</p>`;
     container.dataset.renderSignature = signature;
+    requestAnimationFrame(() => updateRowNavigation(container.closest(".media-row-shell")));
   }
 
   function queueFromElement(element) {
@@ -1295,19 +1255,31 @@
   function navigate(page) {
     if (!Object.prototype.hasOwnProperty.call(CATEGORY, page) && page !== "discover") page = "discover";
     const previousPage = state.page;
+    if (previousPage === page) {
+      setNavigationOpen(false);
+      return;
+    }
+
+    // Keep the exact active sequence item when moving between Discover and a
+    // collection. Between collection pages, leave the existing preview alone.
+    const handoffFile = state.activePreviewFile || null;
+    const handoffKind = state.activePreviewKind;
+    const previousFeatured = state.fileById.get(state.heroFeaturedId) ||
+      state.fileById.get(state.featuredSequenceLastId) || null;
+
     state.page = page;
     state.heroPreviewWaiting = false;
     state.heroErasePending = false;
     state.heroResumeAfterPreview = null;
     document.documentElement.dataset.page = page;
     stopCardPreview();
-    stopActivePreview();
     state.genre = "All";
     state.subgenre = "All";
     state.folderPathFilters = [];
     state.query = "";
     byId("section-search").value = "";
     byId("clear-section-search").hidden = true;
+
     const discover = page === "discover";
     byId("hero").hidden = !discover;
     byId("continue-section").hidden = !discover || !state.files.some(file => Number(state.progress[file.id]?.time) > 10);
@@ -1317,17 +1289,40 @@
     byId("collection").hidden = discover;
     $$(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.page === page));
     setNavigationOpen(false);
+
     if (discover) {
-      stopAmbientRotation();
       clearHeroTimers();
-      showQuote(state.quoteIndex);
+      state.typingToken += 1;
+      const resumeFile = handoffKind === "ambience" && handoffFile ? handoffFile :
+        (previousPage !== "discover" ? null : (handoffFile || previousFeatured));
+      if (resumeFile && state.fileById.has(resumeFile.id)) {
+        showFeatured(state.fileById.get(resumeFile.id));
+      } else {
+        stopActivePreview();
+        advanceHero();
+      }
     } else {
       clearHeroTimers();
       state.typingToken += 1;
-      byId("hero-quote").classList.remove("typing");
-      if (previousPage === "discover") showAmbientQuote(state.quoteIndex);
-      ensureAmbientRotation();
+      byId("hero-title").classList.remove("typing");
       renderCollection();
+
+      if (previousPage === "discover") {
+        const resumeFile = handoffKind === "hero" && handoffFile ? handoffFile : previousFeatured;
+        stopActivePreview();
+        if (resumeFile && state.fileById.has(resumeFile.id) && playerLayer.hidden && !document.hidden) {
+          // Restart the same featured item off-screen; it remains the same
+          // sequence entry and the shared cursor advances only when it ends.
+          startHeroPreview(state.fileById.get(resumeFile.id), { ambienceOnly: true });
+        } else {
+          startAmbientPreviewCycle();
+        }
+      } else if (handoffKind !== "ambience" || !handoffFile || !playerLayer.hidden) {
+        stopActivePreview();
+        startAmbientPreviewCycle();
+      }
+      // Movies -> Anime -> Library and similar transitions do not interrupt
+      // or restart the one global preview/ambience sequence.
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -1434,7 +1429,15 @@
       state.folders = Array.isArray(data.folders) ? data.folders : [];
       byId("library-status").textContent = `${state.files.length} TITLES IN YOUR LIBRARY`;
       renderHome();
-      if (state.page !== "discover") renderCollection();
+      if (state.page !== "discover") {
+        renderCollection();
+        if (state.activePreviewKind !== "ambience" || !state.activePreviewFile || !state.fileById.has(state.activePreviewFile.id)) {
+          stopActivePreview();
+          startAmbientPreviewCycle();
+        }
+      }
+      else if (state.files.some(file => file.type === "video") && !state.fileById.has(state.heroFeaturedId)) advanceHero();
+      else if (!state.files.some(file => file.type === "video") && state.heroFeaturedId) showEmptyHero();
 
       if (initial && !state.sharedHandled) {
         state.sharedHandled = true;
@@ -1726,6 +1729,8 @@
     if (state.page === "discover" && state.heroFeaturedId) {
       const featured = state.fileById.get(state.heroFeaturedId);
       if (featured) startHeroPreview(featured);
+    } else {
+      startAmbientPreviewCycle({ resumeCurrent: true });
     }
   }
 
@@ -2056,14 +2061,13 @@
     if (document.hidden) return;
     state.libraryPollTimer = window.setInterval(() => {
       if (!document.hidden && !state.libraryBusy) void loadLibrary(false);
-    }, 60000);
+    }, 30000);
   }
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       stopLibraryPolling();
       clearHeroTimers();
-      stopAmbientRotation();
       state.typingToken += 1;
       state.heroPreviewWaiting = false;
       state.heroErasePending = false;
@@ -2076,14 +2080,13 @@
       if (state.heroFeaturedId) {
         const featured = state.fileById.get(state.heroFeaturedId);
         if (featured) showFeatured(featured);
-        else showQuote(state.quoteIndex);
+        else advanceHero();
       } else {
-        showQuote(state.quoteIndex);
+        advanceHero();
       }
     } else {
       startLibraryPolling();
-      showAmbientQuote(state.quoteIndex);
-      ensureAmbientRotation();
+      startAmbientPreviewCycle({ resumeCurrent: true });
     }
   });
   window.addEventListener("beforeunload", () => {
@@ -2093,6 +2096,7 @@
 
   function start() {
     document.documentElement.dataset.page = state.page;
+    setupHomeRowNavigation();
     initHero();
     renderHome();
     loadLibrary(true);

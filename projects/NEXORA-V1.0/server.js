@@ -1,4 +1,4 @@
-// NEXORA V7.7.3 — Discover Playback Recovery + PC Rendering Refinement
+// NEXORA V7.8.3 — Unified Featured Sequence & Quote Removal
 // Based on the saved V6 server. Keeps its scanner, safe media resolution,
 // symlink checks, byte-range streaming and download routes. The thumbnail
 // endpoint now samples several points through a video and caches a selected
@@ -123,7 +123,7 @@ async function scanDirectory(directory, relative = "") {
 }
 
 app.get("/api/health", (req, res) => {
-  res.json({ success: true, server: "NEXORA", version: "7.7.3", status: "online" });
+  res.json({ success: true, server: "NEXORA", version: "7.8.3", status: "online" });
 });
 
 app.get("/api/library", async (req, res) => {
@@ -132,7 +132,7 @@ app.get("/api/library", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.json({
       success: true,
-      version: "7.7.3",
+      version: "7.8.3",
       total: result.files.length,
       folderCount: result.folders.length,
       folders: result.folders,
@@ -1024,7 +1024,7 @@ app.get("/api/diagnostics", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.json({
       server: "NEXORA",
-      version: "7.7.3",
+      version: "7.8.3",
       ffmpeg,
       ffprobe,
       libx264,
@@ -1133,7 +1133,7 @@ app.get("/api/download", async (req, res) => {
 
 app.listen(PORT, HOST, () => {
   console.log("\n========================================");
-  console.log("          NEXORA MEDIA SERVER V7.7.3");
+  console.log("          NEXORA MEDIA SERVER V7.8.3");
   console.log("========================================");
   console.log(`Website: http://localhost:${PORT}`);
   console.log(`Library: ${MEDIA_ROOT}`);
