@@ -1,4 +1,4 @@
-// NEXORA V7.8.3 — Unified Featured Sequence & Quote Removal
+// NEXORA V1.1.0 — God Mode Hardening
 // Based on the saved V6 server. Keeps its scanner, safe media resolution,
 // symlink checks, byte-range streaming and download routes. The thumbnail
 // endpoint now samples several points through a video and caches a selected
@@ -22,6 +22,7 @@ const PUBLIC_ROOT = ROOT;
 const THUMB_ROOT = path.join(PUBLIC_ROOT, "assets", "thumbnails");
 const PREVIEW_ROOT = path.join(PUBLIC_ROOT, "assets", "previews");
 const SUBTITLE_ROOT = path.join(PUBLIC_ROOT, "assets", "subtitles");
+const MAX_SUBTITLE_BYTES = 32 * 1024 * 1024;
 
 const VIDEO = new Set([
   "mp4", "m4v", "webm", "ogg", "mov", "mkv", "avi", "mpeg", "mpg", "3gp"
@@ -38,20 +39,154 @@ const MIME = {
   wma: "audio/x-ms-wma"
 };
 
+/* -------------------- Self-contained media path and range helpers --------------------
+   Keep these primitives in server.js so a partial project extraction cannot
+   leave the runtime with a missing ./lib/media-security dependency.
+-------------------------------------------------------------------------------------- */
+
+function isPathInside(root, candidate) {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === "" || (
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
+}
+
+function resolveMediaPath(mediaRoot, requestedPath) {
+  if (
+    typeof requestedPath !== "string" ||
+    requestedPath.length === 0 ||
+    requestedPath.length > 2048 ||
+    requestedPath.includes("\0")
+  ) return null;
+
+  const normalized = requestedPath.replace(/\\/g, "/");
+  const segments = normalized.split("/");
+  if (segments.some(segment => !segment || segment === "." || segment === "..")) return null;
+
+  const root = path.resolve(mediaRoot);
+  const candidate = path.resolve(root, ...segments);
+  if (candidate === root || !isPathInside(root, candidate)) return null;
+  return candidate;
+}
+
+async function verifyMediaPath(mediaRoot, filePath, videoExtensions, audioExtensions) {
+  const root = path.resolve(mediaRoot);
+  const candidate = path.resolve(filePath);
+  if (candidate === root || !isPathInside(root, candidate)) {
+    throw new Error("Media path is outside the media directory.");
+  }
+
+  const relative = path.relative(root, candidate);
+  let current = root;
+  for (const segment of relative.split(path.sep)) {
+    current = path.join(current, segment);
+    const info = await fs.promises.lstat(current);
+    if (info.isSymbolicLink()) throw new Error("Symbolic links are not allowed.");
+  }
+
+  const [realRoot, canonicalPath] = await Promise.all([
+    fs.promises.realpath(root),
+    fs.promises.realpath(candidate)
+  ]);
+  if (!isPathInside(realRoot, canonicalPath) || canonicalPath === realRoot) {
+    throw new Error("Resolved media path is outside the media directory.");
+  }
+
+  const stats = await fs.promises.stat(canonicalPath);
+  if (!stats.isFile()) throw new Error("Not a media file.");
+  const extension = path.extname(canonicalPath).slice(1).toLowerCase();
+  if (!videoExtensions.has(extension) && !audioExtensions.has(extension)) {
+    throw new Error("Unsupported media format.");
+  }
+  return { stats, extension, canonicalPath };
+}
+
+function parseSingleByteRange(header, size) {
+  if (typeof header !== "string" || !Number.isSafeInteger(size) || size <= 0) return null;
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!match || (!match[1] && !match[2])) return null;
+
+  let start;
+  let end;
+  if (!match[1]) {
+    const suffixLength = Number(match[2]);
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) return null;
+    start = Math.max(0, size - suffixLength);
+    end = size - 1;
+  } else {
+    start = Number(match[1]);
+    end = match[2] ? Number(match[2]) : size - 1;
+  }
+
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start >= size || end < start) return null;
+  return { start, end: Math.min(end, size - 1) };
+}
+
 if (!fs.existsSync(MEDIA_ROOT)) {
   console.error("[NEXORA] Entertainment directory not found:", MEDIA_ROOT);
   console.error("Create an Entertainment folder beside server.js and place your media folders inside it.");
   process.exit(1);
 }
 
+const MEDIA_ROOT_REAL = fs.realpathSync(MEDIA_ROOT);
+
 fs.mkdirSync(THUMB_ROOT, { recursive: true });
 fs.mkdirSync(PREVIEW_ROOT, { recursive: true });
 fs.mkdirSync(SUBTITLE_ROOT, { recursive: true });
 app.disable("x-powered-by");
+// Trust the local reverse proxy so API rate limits use the visitor IP
+// rather than grouping every proxied visitor under one address.
+app.set("trust proxy", "loopback");
 
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  if (req.secure) res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+  next();
+});
+
+// Small in-memory per-client API guard. Long media streams remain streamed;
+// generated-media routes get a tighter ceiling to protect CPU/FFmpeg capacity.
+const apiRequestBuckets = new Map();
+let apiBucketCleanupCounter = 0;
+app.use("/api", (req, res, next) => {
+  const now = Date.now();
+  const address = String(req.ip || req.socket?.remoteAddress || "unknown").slice(0, 96);
+  const expensive = /^\/(?:thumbnail|preview|subtitle|subtitles|diagnostics)$/.test(req.path);
+  const limit = expensive ? 240 : 720;
+  const windowMs = 60_000;
+  const key = `${address}:${expensive ? "generated" : "api"}`;
+  let bucket = apiRequestBuckets.get(key);
+  if (!bucket || now - bucket.startedAt >= windowMs) {
+    bucket = { startedAt: now, count: 0 };
+    apiRequestBuckets.set(key, bucket);
+  }
+  bucket.count += 1;
+  if (bucket.count > limit) {
+    res.setHeader("Retry-After", String(Math.max(1, Math.ceil((windowMs - (now - bucket.startedAt)) / 1000))));
+    return res.status(429).json({ success: false, error: "Too many requests. Please try again shortly." });
+  }
+  if (++apiBucketCleanupCounter % 128 === 0) {
+    for (const [bucketKey, value] of apiRequestBuckets) {
+      if (now - value.startedAt > windowMs * 2) apiRequestBuckets.delete(bucketKey);
+    }
+  }
+  // A hard ceiling keeps this in-memory guard itself from becoming a memory
+  // pressure point when exposed to many one-off client addresses.
+  if (apiRequestBuckets.size > 10000) {
+    const excess = apiRequestBuckets.size - 9000;
+    let removed = 0;
+    for (const bucketKey of apiRequestBuckets.keys()) {
+      apiRequestBuckets.delete(bucketKey);
+      if (++removed >= excess) break;
+    }
+  }
   next();
 });
 
@@ -77,31 +212,44 @@ app.get("/script.js", (req, res) => {
 /* -------------------- Library scanner -------------------- */
 
 async function scanDirectory(directory, relative = "") {
-  const entries = await fs.promises.readdir(directory, { withFileTypes: true });
+  // Resolve every directory before traversing it. A symlink that appeared
+  // after the parent readdir is rejected rather than followed.
+  const directoryInfo = await fs.promises.lstat(directory);
+  if (!directoryInfo.isDirectory() || directoryInfo.isSymbolicLink()) return { files: [], folders: [] };
+  const canonicalDirectory = await fs.promises.realpath(directory);
+  if (!isPathInside(MEDIA_ROOT_REAL, canonicalDirectory)) return { files: [], folders: [] };
+  const entries = await fs.promises.readdir(canonicalDirectory, { withFileTypes: true });
   const files = [];
   const folders = [];
 
   for (const entry of entries) {
-    if (entry.isSymbolicLink()) continue;
-
-    const absolute = path.join(directory, entry.name);
+    const absolute = path.join(canonicalDirectory, entry.name);
     const rel = relative ? `${relative}/${entry.name}` : entry.name;
+    let entryInfo;
+    try { entryInfo = await fs.promises.lstat(absolute); } catch { continue; }
+    if (entryInfo.isSymbolicLink()) continue;
 
-    if (entry.isDirectory()) {
+    if (entryInfo.isDirectory()) {
+      const canonicalChild = await fs.promises.realpath(absolute).catch(() => null);
+      if (!canonicalChild || !isPathInside(MEDIA_ROOT_REAL, canonicalChild)) continue;
       folders.push(rel);
-      const nested = await scanDirectory(absolute, rel);
-      files.push(...nested.files);
-      folders.push(...nested.folders);
+      const nested = await scanDirectory(canonicalChild, rel);
+      // Avoid spreading potentially huge nested catalogues into a single
+      // function call. Iteration preserves order without argument-count limits.
+      for (const file of nested.files) files.push(file);
+      for (const folder of nested.folders) folders.push(folder);
       continue;
     }
 
-    if (!entry.isFile()) continue;
+    if (!entryInfo.isFile()) continue;
 
+    const canonicalFile = await fs.promises.realpath(absolute).catch(() => null);
+    if (!canonicalFile || !isPathInside(MEDIA_ROOT_REAL, canonicalFile)) continue;
     const extension = path.extname(entry.name).slice(1).toLowerCase();
     const type = VIDEO.has(extension) ? "video" : AUDIO.has(extension) ? "audio" : null;
     if (!type) continue;
 
-    const stats = await fs.promises.stat(absolute);
+    const stats = entryInfo;
     const folderParts = relative ? relative.split("/") : [];
 
     files.push({
@@ -122,22 +270,44 @@ async function scanDirectory(directory, relative = "") {
   return { files, folders };
 }
 
+// Share a recent library snapshot between simultaneous visitors and refreshes.
+// The short cache avoids repeatedly walking the entire media tree on bursts.
+const LIBRARY_CACHE_TTL_MS = 15000;
+let librarySnapshotCache = null;
+let librarySnapshotPayloadJson = null;
+let librarySnapshotAt = 0;
+let libraryScanInFlight = null;
+async function getLibrarySnapshot() {
+  const now = Date.now();
+  if (librarySnapshotCache && now - librarySnapshotAt < LIBRARY_CACHE_TTL_MS) return librarySnapshotCache;
+  if (libraryScanInFlight) return libraryScanInFlight;
+  libraryScanInFlight = scanDirectory(MEDIA_ROOT_REAL)
+    .then(result => {
+      librarySnapshotCache = result;
+      librarySnapshotPayloadJson = JSON.stringify({
+        success: true,
+        version: "1.1.0",
+        total: result.files.length,
+        folderCount: result.folders.length,
+        folders: result.folders,
+        files: result.files
+      });
+      librarySnapshotAt = Date.now();
+      return result;
+    })
+    .finally(() => { libraryScanInFlight = null; });
+  return libraryScanInFlight;
+}
+
 app.get("/api/health", (req, res) => {
-  res.json({ success: true, server: "NEXORA", version: "7.8.3", status: "online" });
+  res.json({ success: true, server: "NEXORA", version: "1.1.0", status: "online" });
 });
 
 app.get("/api/library", async (req, res) => {
   try {
-    const result = await scanDirectory(MEDIA_ROOT);
+    await getLibrarySnapshot();
     res.setHeader("Cache-Control", "no-store");
-    res.json({
-      success: true,
-      version: "7.8.3",
-      total: result.files.length,
-      folderCount: result.folders.length,
-      folders: result.folders,
-      files: result.files
-    });
+    res.type("application/json").send(librarySnapshotPayloadJson);
   } catch (error) {
     console.error("[NEXORA] Scanner error:", error);
     res.status(500).json({ success: false, message: "Unable to scan media directory." });
@@ -147,42 +317,18 @@ app.get("/api/library", async (req, res) => {
 /* -------------------- Safe path resolution -------------------- */
 
 function resolveMedia(requestedPath) {
-  if (typeof requestedPath !== "string" || !requestedPath || requestedPath.includes("\0")) return null;
-  const normalized = requestedPath.replace(/\\/g, "/");
-  const parts = normalized.split("/");
-  if (parts.some(part => !part || part === "." || part === "..")) return null;
-
-  const filePath = path.resolve(MEDIA_ROOT, ...parts);
-  const relative = path.relative(MEDIA_ROOT, filePath);
-  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) return null;
-  return filePath;
+  return resolveMediaPath(MEDIA_ROOT, requestedPath);
 }
 
 async function verifyMedia(filePath) {
-  const relative = path.relative(MEDIA_ROOT, filePath);
-  let current = MEDIA_ROOT;
-
-  for (const part of relative.split(path.sep)) {
-    current = path.join(current, part);
-    const info = await fs.promises.lstat(current);
-    if (info.isSymbolicLink()) throw new Error("Symbolic links are not allowed.");
-  }
-
-  const stats = await fs.promises.stat(filePath);
-  if (!stats.isFile()) throw new Error("Not a media file.");
-
-  const extension = path.extname(filePath).slice(1).toLowerCase();
-  if (!VIDEO.has(extension) && !AUDIO.has(extension)) throw new Error("Unsupported media format.");
-  return { stats, extension };
+  return verifyMediaPath(MEDIA_ROOT, filePath, VIDEO, AUDIO);
 }
 
 /* -------------------- High-resolution representative thumbnails + previews --------
 
-   V7.4 fixes the biggest latency problem in V7.3.1:
-   the prior thumbnail route spawned up to FIVE FFmpeg processes in series
-   for every new video. The new path probes duration once, stores one stable
-   scene timestamp, then uses ONE FFmpeg extraction per requested thumbnail
-   size. Both the thumbnail and short preview use the same saved timestamp.
+   Probe duration once, persist one representative scene timestamp, and
+   reuse it for poster generation and the short preview. Work is deduplicated
+   by file/cache key and bounded by the shared FFmpeg concurrency gate.
 
 ----------------------------------------------------------------------------- */
 
@@ -201,8 +347,41 @@ const MAX_FFMPEG_JOBS = Math.max(
 let activeFfmpegJobs = 0;
 const ffmpegWaiters = [];
 
+// FFprobe is a separate child-process workload. Bound it independently so
+// concurrent requests for many distinct files cannot spawn an unbounded number
+// of metadata probes while FFmpeg's encoder queue remains within its own cap.
+const MAX_FFPROBE_JOBS = Math.max(
+  1,
+  Math.min(4, Number(process.env.NEXORA_FFPROBE_JOBS) || 2)
+);
+const MAX_FFPROBE_WAITERS = 64;
+let activeFfprobeJobs = 0;
+const ffprobeWaiters = [];
+
+async function withFfprobeSlot(task) {
+  if (activeFfprobeJobs >= MAX_FFPROBE_JOBS) {
+    if (ffprobeWaiters.length >= MAX_FFPROBE_WAITERS) {
+      throw new Error("NEXORA metadata probing is busy. Please retry shortly.");
+    }
+    await new Promise(resolve => ffprobeWaiters.push(resolve));
+  } else {
+    activeFfprobeJobs++;
+  }
+
+  try {
+    return await task();
+  } finally {
+    const next = ffprobeWaiters.shift();
+    if (next) next();
+    else activeFfprobeJobs--;
+  }
+}
+
 async function withFfmpegSlot(task) {
   if (activeFfmpegJobs >= MAX_FFMPEG_JOBS) {
+    // Bound queued work as well as active processes. This keeps bursts of
+    // thumbnail/preview requests from creating an unbounded waiter backlog.
+    if (ffmpegWaiters.length >= 96) throw new Error("NEXORA media processing is busy. Please retry shortly.");
     // A released slot is transferred directly to the next waiter. Keeping
     // the active count unchanged during transfer prevents a thundering-herd
     // race from temporarily exceeding the configured process limit.
@@ -264,12 +443,12 @@ async function getPrimaryVideoStream(filePath, suppliedStats = null) {
   const cacheKey = `${filePath}:${stats.size}:${stats.mtimeMs}`;
   if (videoStreamJobs.has(cacheKey)) return videoStreamJobs.get(cacheKey);
 
-  const job = runTool("ffprobe", [
+  const job = withFfprobeSlot(() => runTool("ffprobe", [
     "-v", "error",
     "-show_entries", "stream=index,codec_type,width,height,avg_frame_rate,r_frame_rate:stream_disposition=attached_pic,default",
     "-of", "json",
     filePath
-  ], { timeout: 25000, maxBuffer: 4 * 1024 * 1024 }).then(({ stdout }) => {
+  ], { timeout: 25000, maxBuffer: 4 * 1024 * 1024 })).then(({ stdout }) => {
     const parsed = JSON.parse(String(stdout || "{}"));
     const candidates = (Array.isArray(parsed.streams) ? parsed.streams : [])
       .filter(stream => stream.codec_type === "video" && Number(stream.disposition?.attached_pic || 0) !== 1)
@@ -356,7 +535,7 @@ async function getSceneMetadata(filePath, stats) {
   }
 
   if (!metadataJobs.has(metaPath)) {
-    const job = withFfmpegSlot(async () => {
+    const job = withFfprobeSlot(async () => {
       const duration = await getDuration(filePath);
 
       // Choose a deterministic point in the middle portion of the title.
@@ -380,15 +559,17 @@ async function getSceneMetadata(filePath, stats) {
 
       const temp = `${metaPath}.tmp-${process.pid}-${crypto.randomBytes(4).toString("hex")}`;
 
-      await fs.promises.writeFile(
-        temp,
-        JSON.stringify(metadata),
-        "utf8"
-      );
-
-      await fs.promises.rename(temp, metaPath);
-
-      return metadata;
+      try {
+        await fs.promises.writeFile(
+          temp,
+          JSON.stringify(metadata),
+          "utf8"
+        );
+        await fs.promises.rename(temp, metaPath);
+        return metadata;
+      } finally {
+        await fs.promises.rm(temp, { force: true }).catch(() => {});
+      }
     }).finally(() => metadataJobs.delete(metaPath));
 
     metadataJobs.set(metaPath, job);
@@ -445,24 +626,27 @@ async function createThumbnail(filePath, output, metadata, width, streamIndex, a
   };
 
   try {
-    // Discover uses the exact opening frame of the preview clip; all other
-    // posters retain the original representative-frame sampling behaviour.
-    await runTool("ffmpeg", buildArgs(!aligned, outputFilter, aligned ? 1 : 2), {
-      timeout: 50000, maxBuffer: 3 * 1024 * 1024
-    });
-    const info = await fs.promises.stat(temp);
-    if (!info.isFile() || info.size < 1200) throw new Error("FFmpeg returned an empty poster frame.");
-  } catch (primaryError) {
+    try {
+      // Discover uses the exact opening frame of the preview clip; all other
+      // posters retain the original representative-frame sampling behaviour.
+      await runTool("ffmpeg", buildArgs(!aligned, outputFilter, aligned ? 1 : 2), {
+        timeout: 50000, maxBuffer: 3 * 1024 * 1024
+      });
+      const info = await fs.promises.stat(temp);
+      if (!info.isFile() || info.size < 1200) throw new Error("FFmpeg returned an empty poster frame.");
+    } catch (primaryError) {
+      await fs.promises.rm(temp, { force: true }).catch(() => {});
+      const fallbackFilter = `${scaleFilter},format=yuvj420p`;
+      await runTool("ffmpeg", buildArgs(false, fallbackFilter, 1), {
+        timeout: 35000, maxBuffer: 3 * 1024 * 1024
+      });
+      const info = await fs.promises.stat(temp);
+      if (!info.isFile() || info.size < 1200) throw new Error(`Poster extraction failed: ${primaryError.message}`);
+    }
+    await fs.promises.rename(temp, output);
+  } finally {
     await fs.promises.rm(temp, { force: true }).catch(() => {});
-    const fallbackFilter = `${scaleFilter},format=yuvj420p`;
-    await runTool("ffmpeg", buildArgs(false, fallbackFilter, 1), {
-      timeout: 35000, maxBuffer: 3 * 1024 * 1024
-    });
-    const info = await fs.promises.stat(temp);
-    if (!info.isFile() || info.size < 1200) throw new Error(`Poster extraction failed: ${primaryError.message}`);
   }
-
-  await fs.promises.rename(temp, output);
 }
 
 async function ensureThumbnail(filePath, stats, requestedWidth, options = {}) {
@@ -574,11 +758,11 @@ async function getExternalSubtitleCandidates(videoPath) {
 
     const sidecar = path.join(directory, entry.name);
     const relative = path.relative(MEDIA_ROOT, sidecar);
-    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) continue;
+    if (!relative || !isPathInside(MEDIA_ROOT_REAL, sidecar)) continue;
 
     try {
       const info = await fs.promises.lstat(sidecar);
-      if (!info.isFile() || info.isSymbolicLink()) continue;
+      if (!info.isFile() || info.isSymbolicLink() || info.size > MAX_SUBTITLE_BYTES) continue;
     } catch {
       continue;
     }
@@ -606,13 +790,13 @@ async function getExternalSubtitleCandidates(videoPath) {
 async function getEmbeddedSubtitleCandidates(videoPath) {
   let result;
   try {
-    result = await runTool("ffprobe", [
+    result = await withFfprobeSlot(() => runTool("ffprobe", [
       "-v", "error",
       "-select_streams", "s",
       "-show_entries", "stream=index,codec_name:stream_tags=language,title",
       "-of", "json",
       videoPath
-    ], { timeout: 25000, maxBuffer: 3 * 1024 * 1024 });
+    ], { timeout: 25000, maxBuffer: 3 * 1024 * 1024 }));
   } catch (error) {
     // External sidecars remain available when embedded subtitle probing fails.
     console.warn("[NEXORA] Embedded subtitle probe failed:", error.message);
@@ -673,12 +857,14 @@ async function safelyResolveSidecar(videoPath, filename) {
 
   const candidate = path.join(path.dirname(videoPath), filename);
   const relative = path.relative(MEDIA_ROOT, candidate);
-  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) return null;
+  if (!relative || !isPathInside(MEDIA_ROOT_REAL, candidate)) return null;
 
   try {
     const stat = await fs.promises.lstat(candidate);
-    if (!stat.isFile() || stat.isSymbolicLink()) return null;
-    return { path: candidate, stat, extension };
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_SUBTITLE_BYTES) return null;
+    const canonicalPath = await fs.promises.realpath(candidate);
+    if (!isPathInside(MEDIA_ROOT_REAL, canonicalPath)) return null;
+    return { path: canonicalPath, stat, extension };
   } catch {
     return null;
   }
@@ -743,9 +929,11 @@ async function extractEmbeddedWebVtt(videoPath, stats, streamIndex) {
 
 app.get("/api/subtitles", async (req, res) => {
   try {
-    const filePath = resolveMedia(req.query.path);
+    let filePath = resolveMedia(req.query.path);
     if (!filePath) return res.status(400).json({ error: "Invalid media path." });
-    const { extension } = await verifyMedia(filePath);
+    const verified = await verifyMedia(filePath);
+    filePath = verified.canonicalPath;
+    const { extension } = verified;
     if (!VIDEO.has(extension)) return res.status(415).json({ error: "Subtitles are available for video files only." });
 
     const [external, embedded] = await Promise.all([
@@ -765,15 +953,17 @@ app.get("/api/subtitles", async (req, res) => {
     res.json({ success: true, tracks });
   } catch (error) {
     console.error("[NEXORA] Subtitle discovery error:", error.stack || error.message);
-    res.status(503).json({ error: "Subtitle discovery failed.", detail: error.message });
+    res.status(503).json({ error: "Subtitle discovery failed." });
   }
 });
 
 app.get("/api/subtitle", async (req, res) => {
   try {
-    const filePath = resolveMedia(req.query.path);
+    let filePath = resolveMedia(req.query.path);
     if (!filePath) return res.status(400).send("Invalid media path.");
-    const { stats, extension } = await verifyMedia(filePath);
+    const verified = await verifyMedia(filePath);
+    filePath = verified.canonicalPath;
+    const { stats, extension } = verified;
     if (!VIDEO.has(extension)) return res.status(415).send("Subtitles are available for videos only.");
 
     const id = String(req.query.id || "");
@@ -815,16 +1005,18 @@ app.get("/api/subtitle", async (req, res) => {
     return res.sendFile(output);
   } catch (error) {
     console.error("[NEXORA] Subtitle delivery error:", error.stack || error.message);
-    if (!res.headersSent) res.status(503).send(`Subtitle conversion failed: ${error.message}`);
+    if (!res.headersSent) res.status(503).send("Subtitle conversion failed. Check the server log for details.");
   }
 });
 
 app.get("/api/thumbnail", async (req, res) => {
   try {
-    const filePath = resolveMedia(req.query.path);
+    let filePath = resolveMedia(req.query.path);
     if (!filePath) return res.status(400).json({ error: "Invalid media path." });
 
-    const { stats, extension } = await verifyMedia(filePath);
+    const verified = await verifyMedia(filePath);
+    filePath = verified.canonicalPath;
+    const { stats, extension } = verified;
     if (!VIDEO.has(extension)) {
       return res.status(415).json({ error: "Posters are available for video files only." });
     }
@@ -848,7 +1040,6 @@ app.get("/api/thumbnail", async (req, res) => {
     if (!res.headersSent) {
       res.status(503).json({
         error: "Thumbnail generation failed.",
-        detail: error.message,
         hint: "Check ffmpeg, ffprobe, file permissions and the source video."
       });
     }
@@ -907,10 +1098,12 @@ async function createPreviewClip(filePath, output, start, duration, sourceStream
 
 app.get("/api/preview", async (req, res) => {
   try {
-    const filePath = resolveMedia(req.query.path);
+    let filePath = resolveMedia(req.query.path);
     if (!filePath) return res.status(400).json({ error: "Invalid media path." });
 
-    const { stats, extension } = await verifyMedia(filePath);
+    const verified = await verifyMedia(filePath);
+    filePath = verified.canonicalPath;
+    const { stats, extension } = verified;
     if (!VIDEO.has(extension)) {
       return res.status(415).json({ error: "Previews are available for video files only." });
     }
@@ -979,7 +1172,6 @@ app.get("/api/preview", async (req, res) => {
     if (!res.headersSent) {
       res.status(503).json({
         error: "Preview generation failed.",
-        detail: error.message,
         hint: "Run ffmpeg -version, ffprobe -version and check that FFmpeg supports libx264."
       });
     }
@@ -988,43 +1180,50 @@ app.get("/api/preview", async (req, res) => {
 
 /* -------------------- Runtime diagnostics -------------------- */
 
-async function toolCheck(command, args) {
+async function toolCheck(command, args, includeStdout = false) {
+  const slot = command === "ffprobe" ? withFfprobeSlot : withFfmpegSlot;
   try {
-    const result = await runTool(command, args, { timeout: 12000, maxBuffer: 1024 * 1024 });
-    return { available: true, output: String(result.stdout || result.stderr || "").trim().split("\n")[0] };
-  } catch (error) {
-    return { available: false, error: error.message };
+    const result = await slot(() => runTool(command, args, {
+      timeout: 12000,
+      maxBuffer: includeStdout ? 2 * 1024 * 1024 : 1024 * 1024
+    }));
+    const check = {
+      available: true,
+      output: String(result.stdout || result.stderr || "").trim().split("\n")[0]
+    };
+    if (includeStdout) check.stdout = String(result.stdout || "");
+    return check;
+  } catch {
+    return { available: false, error: "Command unavailable or failed." };
   }
 }
 
-app.get("/api/diagnostics", async (req, res) => {
-  try {
+const DIAGNOSTICS_CACHE_TTL_MS = 30_000;
+let diagnosticsCache = null;
+let diagnosticsCacheAt = 0;
+let diagnosticsInFlight = null;
+
+async function getRuntimeDiagnostics() {
+  const now = Date.now();
+  if (diagnosticsCache && now - diagnosticsCacheAt < DIAGNOSTICS_CACHE_TTL_MS) {
+    return diagnosticsCache;
+  }
+  if (diagnosticsInFlight) return diagnosticsInFlight;
+
+  diagnosticsInFlight = (async () => {
     const [ffmpeg, ffprobe, encoders, thumbWritable, previewWritable] = await Promise.all([
       toolCheck("ffmpeg", ["-version"]),
       toolCheck("ffprobe", ["-version"]),
-      toolCheck("ffmpeg", ["-hide_banner", "-encoders"]),
+      toolCheck("ffmpeg", ["-hide_banner", "-encoders"], true),
       fs.promises.access(THUMB_ROOT, fs.constants.W_OK).then(() => true).catch(() => false),
       fs.promises.access(PREVIEW_ROOT, fs.constants.W_OK).then(() => true).catch(() => false)
     ]);
 
-    const encoderOutput = encoders.available ? String(encoders.output || "") : "";
-
-    // The first line of `-encoders` is a heading; query text is not echoed in
-    // toolCheck's first-line summary, so make a compact full check separately.
-    let libx264 = false;
-    if (encoders.available) {
-      try {
-        const full = await runTool("ffmpeg", ["-hide_banner", "-encoders"], { timeout: 12000, maxBuffer: 2 * 1024 * 1024 });
-        libx264 = /\blibx264\b/.test(String(full.stdout || ""));
-      } catch {
-        libx264 = false;
-      }
-    }
-
-    res.setHeader("Cache-Control", "no-store");
-    res.json({
+    const libx264 = encoders.available && /\blibx264\b/.test(encoders.stdout || "");
+    delete encoders.stdout;
+    return {
       server: "NEXORA",
-      version: "7.8.3",
+      version: "1.1.0",
       ffmpeg,
       ffprobe,
       libx264,
@@ -1032,13 +1231,32 @@ app.get("/api/diagnostics", async (req, res) => {
       previewTarget: { maxWidth: 1920, maxHeight: 1080, frameRate: "source-capped-at-30", crf: 18, preset: "fast" },
       thumbnailCacheWritable: thumbWritable,
       previewCacheWritable: previewWritable,
-      previewEngineReady: ffmpeg.available && ffprobe.available && libx264 && thumbWritable && previewWritable,
-      activeFfmpegJobs,
-      maxFfmpegJobs: MAX_FFMPEG_JOBS
-    });
+      previewEngineReady: ffmpeg.available && ffprobe.available && libx264 && thumbWritable && previewWritable
+    };
+  })();
 
-  } catch (error) {
-    res.status(500).json({ error: "Diagnostics failed.", detail: error.message });
+  try {
+    diagnosticsCache = await diagnosticsInFlight;
+    diagnosticsCacheAt = Date.now();
+    return diagnosticsCache;
+  } finally {
+    diagnosticsInFlight = null;
+  }
+}
+
+app.get("/api/diagnostics", async (req, res) => {
+  try {
+    const diagnostics = await getRuntimeDiagnostics();
+    res.setHeader("Cache-Control", "no-store");
+    res.json({
+      ...diagnostics,
+      activeFfmpegJobs,
+      maxFfmpegJobs: MAX_FFMPEG_JOBS,
+      activeFfprobeJobs,
+      maxFfprobeJobs: MAX_FFPROBE_JOBS
+    });
+  } catch {
+    res.status(500).json({ error: "Diagnostics failed." });
   }
 });
 
@@ -1046,10 +1264,12 @@ app.get("/api/diagnostics", async (req, res) => {
 
 app.get("/api/stream", async (req, res) => {
   try {
-    const filePath = resolveMedia(req.query.path);
+    let filePath = resolveMedia(req.query.path);
     if (!filePath) return res.status(400).send("Invalid media path.");
 
-    const { stats, extension } = await verifyMedia(filePath);
+    const verified = await verifyMedia(filePath);
+    filePath = verified.canonicalPath;
+    const { stats, extension } = verified;
     const size = stats.size;
 
     res.setHeader("Content-Type", MIME[extension] || "application/octet-stream");
@@ -1058,7 +1278,13 @@ app.get("/api/stream", async (req, res) => {
 
     if (!req.headers.range) {
       res.setHeader("Content-Length", size);
+      if (req.method === "HEAD") return res.end();
       const stream = fs.createReadStream(filePath);
+      // A disconnected viewer must not keep a large media file descriptor and
+      // read workload alive until the entire file has been consumed.
+      res.once("close", () => {
+        if (!stream.destroyed) stream.destroy();
+      });
       stream.on("error", error => {
         console.error("[NEXORA] Stream error:", error);
         if (!res.headersSent) res.status(500).end();
@@ -1067,36 +1293,25 @@ app.get("/api/stream", async (req, res) => {
       return stream.pipe(res);
     }
 
-    const match = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
-    if (!match || size === 0) {
+    const range = parseSingleByteRange(req.headers.range, size);
+    if (!range) {
       res.setHeader("Content-Range", `bytes */${size}`);
       return res.status(416).end();
     }
 
-    let start;
-    let end;
+    const { start, end } = range;
 
-    if (!match[1]) {
-      const suffix = Number(match[2]);
-      if (!Number.isSafeInteger(suffix) || suffix <= 0) return res.status(416).end();
-      start = Math.max(0, size - suffix);
-      end = size - 1;
-    } else {
-      start = Number(match[1]);
-      end = match[2] ? Number(match[2]) : size - 1;
-    }
-
-    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start >= size || end < start) {
-      res.setHeader("Content-Range", `bytes */${size}`);
-      return res.status(416).end();
-    }
-
-    end = Math.min(end, size - 1);
     res.status(206);
     res.setHeader("Content-Range", `bytes ${start}-${end}/${size}`);
     res.setHeader("Content-Length", end - start + 1);
+    if (req.method === "HEAD") return res.end();
 
     const stream = fs.createReadStream(filePath, { start, end });
+    // Range requests are common during seeking; release their file handles
+    // immediately when the browser abandons a request.
+    res.once("close", () => {
+      if (!stream.destroyed) stream.destroy();
+    });
     stream.on("error", error => {
       console.error("[NEXORA] Range stream error:", error);
       if (!res.headersSent) res.status(500).end();
@@ -1112,28 +1327,55 @@ app.get("/api/stream", async (req, res) => {
 /* -------------------- Download -------------------- */
 
 app.get("/api/download", async (req, res) => {
+  let stream;
   try {
-    const filePath = resolveMedia(req.query.path);
+    const requestedPath = typeof req.query.path === "string" ? req.query.path : "";
+    let filePath = resolveMedia(requestedPath);
     if (!filePath) return res.status(400).send("Invalid media path.");
 
-    const { extension } = await verifyMedia(filePath);
-    res.setHeader("Content-Type", MIME[extension] || "application/octet-stream");
+    const verified = await verifyMedia(filePath);
+    filePath = verified.canonicalPath;
+    const { stats, extension } = verified;
+    const filename = path.basename(filePath);
+    // ASCII fallback plus RFC 5987 UTF-8 filename protects spaces, Unicode,
+    // plus signs and punctuation without putting user text directly in headers.
+    const fallbackName = filename
+      .replace(/[^\x20-\x7E]/g, "_")
+      .replace(/[\"\\]/g, "_")
+      .replace(/[\r\n]/g, "_");
+    const encodedName = encodeURIComponent(filename).replace(/[!'()*]/g, character =>
+      `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+    );
 
-    res.download(filePath, path.basename(filePath), error => {
-      if (error) {
-        console.error("[NEXORA] Download error:", error.message);
-        if (!res.headersSent) res.status(500).end("Download failed.");
-      }
+    res.status(200);
+    res.setHeader("Content-Type", MIME[extension] || "application/octet-stream");
+    res.setHeader("Content-Length", String(stats.size));
+    res.setHeader("Content-Disposition", `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`);
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Accept-Ranges", "none");
+    if (req.method === "HEAD") return res.end();
+
+    stream = fs.createReadStream(filePath);
+    stream.on("error", error => {
+      console.error("[NEXORA] Download stream error:", error.message);
+      if (!res.headersSent) res.status(500).end("Download failed.");
+      else res.destroy(error);
     });
+    res.on("close", () => {
+      if (stream && !stream.destroyed) stream.destroy();
+    });
+    stream.pipe(res);
   } catch (error) {
-    console.error("[NEXORA] Download error:", error);
+    console.error("[NEXORA] Download error:", error.message);
     if (!res.headersSent) res.status(404).send("Unable to download media.");
+    else if (stream && !stream.destroyed) stream.destroy(error);
   }
 });
 
 app.listen(PORT, HOST, () => {
   console.log("\n========================================");
-  console.log("          NEXORA MEDIA SERVER V7.8.3");
+  console.log("          NEXORA MEDIA SERVER V1.1.0");
   console.log("========================================");
   console.log(`Website: http://localhost:${PORT}`);
   console.log(`Library: ${MEDIA_ROOT}`);
