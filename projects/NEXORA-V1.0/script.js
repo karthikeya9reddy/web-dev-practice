@@ -49,16 +49,24 @@
     favourites: new Set(Array.isArray(storedFavourites) ? storedFavourites : []),
     progress: storedProgress && typeof storedProgress === "object" ? storedProgress : {},
     ambientBackIndex: 0,
-    ambientObjectUrl: null,
     ambientCaptureToken: 0,
-    ambientCaptureTimer: null,
+    ambientFrameCallbackId: null,
+    ambientFrameTimer: null,
+    ambientPaletteRgb: [88, 114, 153],
     ambientPreviewTimer: null,
     heroFeaturedId: null,
     featuredSequenceLastId: null,
     heroTimer: null,
     heroPreviewWaiting: false,
     heroPreviewFailsafeTimer: null,
+    heroTransitionCleanupTimer: null,
     heroErasePending: false,
+    heroTitleReadyToErase: false,
+    heroTitleFinished: false,
+    heroPreviewFinished: false,
+    heroAdvanceTriggered: false,
+    heroExitRequested: false,
+    heroEraseNow: null,
     heroResumeAfterPreview: null,
     previewToken: 0,
     previewAbort: null,
@@ -82,6 +90,9 @@
     queueRegistry: new Map(),
     queueSerial: 0,
     currentFile: null,
+    playerLoadToken: 0,
+    pendingMetadataMedia: null,
+    pendingMetadataHandler: null,
     activeMedia: null,
     audio: null,
     subtitleTracks: [],
@@ -91,6 +102,11 @@
     repeat: false,
     autoplay: true,
     libraryBusy: false,
+    libraryLoaded: false,
+    libraryOffline: false,
+    subtitleDiscoveryFor: null,
+    searchIndex: new Map(),
+    lastProgressPersistAt: 0,
     sharedHandled: false,
     saveTimer: null,
     controlsTimer: null,
@@ -98,13 +114,33 @@
     settingsOpen: false,
     libraryPollTimer: null,
     cardPointerRaf: 0,
-    pendingCardPointer: null
+    pendingCardPointer: null,
+    miniTransitionToken: 0,
+    miniAnimations: [],
+    miniHideTimer: null,
+    miniPointer: null,
+    miniPointerFrame: 0,
+    miniSeeking: false,
+    miniPosition: safeRead("nexora-mini-position", null),
+    pageAnimationTimer: null
   };
 
   const video = byId("media");
   const playerLayer = byId("player-layer");
   const playerWindow = byId("player-window");
+  const miniPlayer = byId("mini-player");
+  const miniVideoSlot = byId("mini-video-slot");
   const previewVideo = byId("preview-player");
+
+  // A floating mini-player must not block the Discover hero preview. It only
+  // blocks the separate ambience cycle on collection pages.
+  function isFullPlayerPresented() {
+    return !playerLayer.hidden;
+  }
+
+  function isPlayerPresented() {
+    return isFullPlayerPresented() || !miniPlayer.hidden;
+  }
   previewVideo.muted = true;
   previewVideo.defaultMuted = true;
   previewVideo.setAttribute("muted", "");
@@ -134,6 +170,13 @@
   document.body.appendChild(audio);
 
   state.audio = audio;
+
+  // Keep broken artwork from leaving empty image boxes. This delegated handler
+  // is compatible with the strict self-only script CSP (no inline onerror).
+  document.addEventListener("error", event => {
+    const image = event.target;
+    if (image instanceof HTMLImageElement && image.dataset.removeOnError === "true") image.remove();
+  }, true);
 
   /* ---------- Formatting and helpers ---------- */
 
@@ -181,7 +224,6 @@
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => node.classList.remove("show"), 2800);
   }
-  const notify = toast;
 
   function folderParts(folder) {
     return String(folder || "").replace(/\\/g, "/").split("/").filter(Boolean);
@@ -220,111 +262,242 @@
     return `/api/preview?path=${encodeURIComponent(file.path)}&duration=${seconds}&quality=${quality}&v=6`;
   }
 
-  function applyAmbience(imageUrl, mood = "neutral", rgb = null) {
-    if (!imageUrl) return;
-    const cssImage = `url("${imageUrl}")`;
-    const root = document.documentElement;
-    root.dataset.mood = mood;
-    if (Array.isArray(rgb) && rgb.length === 3) {
-      root.style.setProperty("--ambient", rgb.map(value => Math.max(0, Math.min(255, Math.round(value)))).join(", "));
-    }
-    root.style.setProperty("--ambient-image", cssImage);
-
-    const next = state.ambientBackIndex ? byId("ambient-a") : byId("ambient-b");
-    const old = state.ambientBackIndex ? byId("ambient-b") : byId("ambient-a");
-    if (next) {
-      next.style.backgroundImage = cssImage;
-      next.classList.add("active");
-    }
-    old?.classList.remove("active");
-    state.ambientBackIndex = 1 - state.ambientBackIndex;
-
-    const previousUrl = state.ambientObjectUrl;
-    state.ambientObjectUrl = imageUrl.startsWith("blob:") ? imageUrl : null;
-    if (previousUrl && previousUrl !== imageUrl) {
-      // Allow both the ambient layers and body backdrop to finish crossfading.
-      window.setTimeout(() => URL.revokeObjectURL(previousUrl), 1900);
-    }
-  }
-
-  function moodFromRgb(rgb) {
-    const [r, g, b] = rgb;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
+  function rgbToHsl(rgb) {
+    let [r, g, b] = rgb.map(value => Math.max(0, Math.min(255, Number(value) || 0)) / 255);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
     const delta = max - min;
-    if (delta < 22 || max < 50) return "neutral";
-    let hue = 0;
-    if (max === r) hue = ((g - b) / delta) % 6;
-    else if (max === g) hue = (b - r) / delta + 2;
-    else hue = (r - g) / delta + 4;
-    hue = (hue * 60 + 360) % 360;
-    if (hue < 18 || hue >= 345) return "red";
-    if (hue < 62) return "warm";
-    if (hue < 165) return "green";
-    if (hue < 255) return "blue";
-    return "violet";
-  }
-
-  function capturePreviewAmbience(file, captureToken) {
-    if (!file || captureToken !== state.ambientCaptureToken) return;
-    if (!["hero", "ambience"].includes(state.activePreviewKind) || state.activePreviewFile?.id !== file.id) return;
-    if (previewVideo.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !previewVideo.videoWidth || !previewVideo.videoHeight) return;
-
-    try {
-      const width = 720;
-      const height = Math.max(1, Math.round(width * previewVideo.videoHeight / previewVideo.videoWidth));
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext("2d", { alpha: false, desynchronized: true });
-      if (!context) return;
-      context.drawImage(previewVideo, 0, 0, width, height);
-
-      // Sample a tiny frame for its dominant colour without reading the full image.
-      const sample = document.createElement("canvas");
-      sample.width = 40;
-      sample.height = 23;
-      const sampleContext = sample.getContext("2d", { willReadFrequently: true });
-      if (!sampleContext) return;
-      sampleContext.drawImage(canvas, 0, 0, sample.width, sample.height);
-      const pixels = sampleContext.getImageData(0, 0, sample.width, sample.height).data;
-      let red = 0, green = 0, blue = 0, count = 0;
-      for (let i = 0; i < pixels.length; i += 4) {
-        const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
-        const brightness = (r + g + b) / 3;
-        if (brightness < 24) continue;
-        red += r; green += g; blue += b; count++;
-      }
-      const rgb = count ? [red / count, green / count, blue / count] : [88, 114, 153];
-      const mood = moodFromRgb(rgb);
-      canvas.toBlob(blob => {
-        if (!blob || captureToken !== state.ambientCaptureToken || state.activePreviewFile?.id !== file.id || !["hero", "ambience"].includes(state.activePreviewKind)) return;
-        const imageUrl = URL.createObjectURL(blob);
-        applyAmbience(imageUrl, mood, rgb);
-      }, "image/jpeg", 0.78);
-    } catch (error) {
-      // Same-origin preview URLs should be canvas-readable. If a browser blocks
-      // frame extraction, retain the last good global ambience without failing playback.
-      console.info("[NEXORA] Preview ambience frame was unavailable:", error?.name || error);
+    let h = 0;
+    const l = (max + min) / 2;
+    let sat = 0;
+    if (delta) {
+      sat = delta / (1 - Math.abs(2 * l - 1));
+      if (max === r) h = ((g - b) / delta) % 6;
+      else if (max === g) h = (b - r) / delta + 2;
+      else h = (r - g) / delta + 4;
+      h = (h * 60 + 360) % 360;
     }
+    return [h, sat, l];
   }
 
-  function schedulePreviewAmbience(file) {
-    clearTimeout(state.ambientCaptureTimer);
-    const token = ++state.ambientCaptureToken;
-    let attempts = 0;
-    const captureWhenReady = () => {
-      if (token !== state.ambientCaptureToken || state.activePreviewFile?.id !== file.id || !["hero", "ambience"].includes(state.activePreviewKind)) return;
-      const hasFrame = previewVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-        previewVideo.videoWidth > 0 && previewVideo.videoHeight > 0 &&
-        !previewVideo.paused && previewVideo.currentTime >= 0.45;
-      if (hasFrame) {
-        capturePreviewAmbience(file, token);
-        return;
+  function hslToRgb(h, s, l) {
+    const hue = ((h % 360) + 360) % 360 / 360;
+    const chroma = (1 - Math.abs(2 * l - 1)) * s;
+    const x = chroma * (1 - Math.abs((hue * 6) % 2 - 1));
+    const m = l - chroma / 2;
+    let values;
+    const sector = Math.floor(hue * 6);
+    if (sector === 0) values = [chroma, x, 0];
+    else if (sector === 1) values = [x, chroma, 0];
+    else if (sector === 2) values = [0, chroma, x];
+    else if (sector === 3) values = [0, x, chroma];
+    else if (sector === 4) values = [x, 0, chroma];
+    else values = [chroma, 0, x];
+    return values.map(value => Math.round((value + m) * 255));
+  }
+
+  function ambienceAccentPalette(rgb) {
+    const [h, saturation, lightness] = rgbToHsl(rgb || [88, 114, 153]);
+    const vivid = Math.max(.42, Math.min(.78, saturation * .86 + .24));
+    const light = Math.max(.38, Math.min(.58, lightness * .92 + .08));
+    return [
+      hslToRgb(h + 42, vivid, light),
+      hslToRgb(h + 205, Math.max(.38, vivid * .92), Math.max(.40, Math.min(.60, light + .015)))
+    ];
+  }
+
+  function stopPreviewAmbienceFrames() {
+    if (state.ambientFrameCallbackId != null && typeof previewVideo.cancelVideoFrameCallback === "function") {
+      try { previewVideo.cancelVideoFrameCallback(state.ambientFrameCallbackId); } catch {}
+    }
+    state.ambientFrameCallbackId = null;
+    clearTimeout(state.ambientFrameTimer);
+    state.ambientFrameTimer = null;
+  }
+
+  function startPreviewAmbienceStream(file) {
+    stopPreviewAmbienceFrames();
+    const captureToken = ++state.ambientCaptureToken;
+    if (!file || !["hero", "ambience"].includes(state.activePreviewKind)) return;
+
+    const incomingIndex = state.ambientBackIndex === 0 ? 1 : 0;
+    const incomingLayer = byId(incomingIndex === 0 ? "ambient-a" : "ambient-b");
+    const outgoingLayer = byId(state.ambientBackIndex === 0 ? "ambient-a" : "ambient-b");
+    const canvas = byId(incomingIndex === 0 ? "ambient-frame-a" : "ambient-frame-b");
+    if (!incomingLayer || !canvas) return;
+
+    const width = 480;
+    const height = 270;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    const context = canvas.getContext("2d", { alpha: false, desynchronized: true });
+    if (!context) return;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = "#07101b";
+    context.fillRect(0, 0, width, height);
+
+    // Keep one low-resolution history buffer. Each newly decoded preview frame
+    // is softly blended with the previous ambience frame before presentation;
+    // this hides the visible stepping of a deliberately low-resolution effect.
+    const historyCanvas = document.createElement("canvas");
+    historyCanvas.width = width;
+    historyCanvas.height = height;
+    const historyContext = historyCanvas.getContext("2d", { alpha: false, desynchronized: true });
+    if (!historyContext) return;
+    historyContext.imageSmoothingEnabled = true;
+    historyContext.imageSmoothingQuality = "medium";
+    let hasHistoryFrame = false;
+
+    // A tiny sampler keeps the palette tied to the moving preview without
+    // reading back the full ambience canvas or forcing layout/style updates.
+    const sampler = document.createElement("canvas");
+    sampler.width = 24;
+    sampler.height = 14;
+    const samplerContext = sampler.getContext("2d", { willReadFrequently: true });
+    let targetRgb = (state.ambientPaletteRgb || [88, 114, 153]).slice();
+    let smoothRgb = targetRgb.slice();
+    let lastPaletteSampleAt = -Infinity;
+    let lastDrawAt = -Infinity;
+    let lastPaletteStepAt = 0;
+    let layerActivated = false;
+
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const deviceMemory = Number(navigator.deviceMemory) || 8;
+    const lowPower = Boolean(connection?.saveData || deviceMemory <= 4 ||
+      (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4));
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    // The video remains the only decoder. Sample up to 30fps on capable devices,
+    // reduce work on constrained devices, and temporally blend adjacent frames.
+    // Stay close to the decoded preview cadence on mobile. The earlier 66ms
+    // low-power interval skipped frames on common 24fps video and made the
+    // blurred atmosphere look like a flickering sequence. Sampling remains
+    // bounded, but low-power devices now target ~24fps instead of ~15fps.
+    const frameInterval = reducedMotion ? 420 : connection?.saveData ? 50 : (lowPower ? 40 : 33);
+    const temporalBlendMs = lowPower ? 54 : 44;
+
+    const isCurrent = () => captureToken === state.ambientCaptureToken &&
+      state.activePreviewFile?.id === file.id &&
+      ["hero", "ambience"].includes(state.activePreviewKind) &&
+      previewVideo.isConnected;
+
+    const samplePalette = now => {
+      if (!samplerContext || now - lastPaletteSampleAt < 480) return;
+      lastPaletteSampleAt = now;
+      try {
+        samplerContext.drawImage(previewVideo, 0, 0, sampler.width, sampler.height);
+        const pixels = samplerContext.getImageData(0, 0, sampler.width, sampler.height).data;
+        let red = 0, green = 0, blue = 0, count = 0;
+        for (let i = 0; i < pixels.length; i += 4) {
+          const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+          const brightness = (r + g + b) / 3;
+          if (brightness < 18) continue;
+          red += r; green += g; blue += b; count++;
+        }
+        if (count) targetRgb = [red / count, green / count, blue / count];
+      } catch {
+        // Keep the last usable palette if a browser blocks canvas readback.
       }
-      if (++attempts < 10) state.ambientCaptureTimer = window.setTimeout(captureWhenReady, 260);
     };
-    state.ambientCaptureTimer = window.setTimeout(captureWhenReady, 900);
+
+    const drawColourAtmosphere = (surface = context) => {
+      const [secondary, tertiary] = ambienceAccentPalette(smoothRgb);
+      surface.save();
+      surface.globalCompositeOperation = "screen";
+      const washes = [
+        { x: width * .18, y: height * .18, radius: width * .76, rgb: smoothRgb, alpha: .26 },
+        { x: width * .84, y: height * .25, radius: width * .72, rgb: secondary, alpha: .23 },
+        { x: width * .60, y: height * .94, radius: width * .76, rgb: tertiary, alpha: .19 }
+      ];
+      for (const wash of washes) {
+        const gradient = surface.createRadialGradient(wash.x, wash.y, 0, wash.x, wash.y, wash.radius);
+        gradient.addColorStop(0, `rgba(${wash.rgb.join(",")},${wash.alpha})`);
+        gradient.addColorStop(1, `rgba(${wash.rgb.join(",")},0)`);
+        surface.fillStyle = gradient;
+        surface.fillRect(0, 0, width, height);
+      }
+      surface.globalCompositeOperation = "source-over";
+      const shade = surface.createLinearGradient(0, 0, 0, height);
+      shade.addColorStop(0, "rgba(3,6,12,.04)");
+      shade.addColorStop(.62, "rgba(3,6,12,.02)");
+      shade.addColorStop(1, "rgba(3,6,12,.24)");
+      surface.fillStyle = shade;
+      surface.fillRect(0, 0, width, height);
+      surface.restore();
+    };
+
+    const drawLiveFrame = now => {
+      if (!isCurrent() || previewVideo.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+          !previewVideo.videoWidth || !previewVideo.videoHeight || previewVideo.currentTime < .18) return;
+      if (now - lastDrawAt < frameInterval) return;
+      const elapsedFrameMs = lastDrawAt > -Infinity ? Math.max(1, now - lastDrawAt) : frameInterval;
+      lastDrawAt = now;
+      // Time-based temporal blending is cadence-independent: it smooths
+      // 24fps mobile previews and 30fps desktop previews to a similar degree.
+      // It avoids hard stepping without adding another media decoder.
+      const incomingFrameAlpha = Math.min(.74, Math.max(.46, 1 - Math.exp(-elapsedFrameMs / temporalBlendMs)));
+
+      const scale = Math.max(width / previewVideo.videoWidth, height / previewVideo.videoHeight) * 1.16;
+      const drawWidth = previewVideo.videoWidth * scale;
+      const drawHeight = previewVideo.videoHeight * scale;
+      const drawX = (width - drawWidth) / 2;
+      const drawY = (height - drawHeight) / 2;
+
+      // The ambience is blurred once at 480×270 before it is enlarged by CSS.
+      // This preserves the soft look without re-blurring a full-viewport layer.
+      context.clearRect(0, 0, width, height);
+      context.fillStyle = "#07101b";
+      context.fillRect(0, 0, width, height);
+      if (hasHistoryFrame) {
+        context.globalAlpha = 1 - incomingFrameAlpha;
+        context.drawImage(historyCanvas, 0, 0, width, height);
+      }
+      context.globalAlpha = hasHistoryFrame ? incomingFrameAlpha : 1;
+      context.save();
+      context.filter = "blur(15px) saturate(2.05) brightness(1.13) contrast(1.08)";
+      context.drawImage(previewVideo, drawX, drawY, drawWidth, drawHeight);
+      context.restore();
+      context.globalAlpha = 1;
+
+      samplePalette(now);
+      const elapsed = lastPaletteStepAt ? Math.max(1, now - lastPaletteStepAt) : frameInterval;
+      lastPaletteStepAt = now;
+      const blend = 1 - Math.exp(-elapsed / 1350);
+      smoothRgb = smoothRgb.map((value, index) => value + (targetRgb[index] - value) * blend);
+      state.ambientPaletteRgb = smoothRgb.map(Math.round);
+      drawColourAtmosphere(context);
+      historyContext.clearRect(0, 0, width, height);
+      historyContext.drawImage(canvas, 0, 0, width, height);
+      hasHistoryFrame = true;
+
+      if (!layerActivated) {
+        layerActivated = true;
+        requestAnimationFrame(() => {
+          if (!isCurrent()) return;
+          incomingLayer.classList.add("active");
+          outgoingLayer?.classList.remove("active");
+          state.ambientBackIndex = incomingIndex;
+        });
+      }
+    };
+
+    if (typeof previewVideo.requestVideoFrameCallback === "function") {
+      const onVideoFrame = now => {
+        state.ambientFrameCallbackId = null;
+        if (!isCurrent()) return;
+        drawLiveFrame(now);
+        if (isCurrent()) state.ambientFrameCallbackId = previewVideo.requestVideoFrameCallback(onVideoFrame);
+      };
+      state.ambientFrameCallbackId = previewVideo.requestVideoFrameCallback(onVideoFrame);
+    } else {
+      const fallbackTick = () => {
+        state.ambientFrameTimer = null;
+        if (!isCurrent()) return;
+        drawLiveFrame(performance.now());
+        if (isCurrent()) state.ambientFrameTimer = window.setTimeout(fallbackTick, frameInterval);
+      };
+      state.ambientFrameTimer = window.setTimeout(fallbackTick, frameInterval);
+    }
   }
 
   /* ---------- Shared hero / global ambience preview + isolated card-hover engine ---------- */
@@ -344,8 +517,7 @@
   function stopActivePreview() {
     clearTimeout(state.ambientPreviewTimer);
     state.ambientPreviewTimer = null;
-    clearTimeout(state.ambientCaptureTimer);
-    state.ambientCaptureTimer = null;
+    stopPreviewAmbienceFrames();
     state.ambientCaptureToken += 1;
     clearTimeout(state.previewStartTimer);
     clearTimeout(state.heroPreviewFailsafeTimer);
@@ -371,6 +543,8 @@
     state.activeHoverCard = null;
   }
 
+  // Card hover previews own their video element. Stopping one must never
+  // pause, reset or restart the independent hero/global ambience preview.
   function stopCardPreview(card = null) {
     if (card && state.activeHoverCard !== card) return;
     clearTimeout(state.cardPreviewStartTimer);
@@ -395,10 +569,48 @@
     }
   }
 
+  function requestHeroTitleExit(fileId) {
+    if (fileId && state.heroFeaturedId !== fileId) return;
+    if (state.heroExitRequested) return;
+    state.heroExitRequested = true;
+    const eraseNow = state.heroTitleReadyToErase && !state.heroErasePending;
+    releaseHeroPreviewHold(fileId);
+    if (eraseNow && typeof state.heroEraseNow === "function") {
+      clearTimeout(state.typingTimer);
+      state.typingTimer = null;
+      state.heroEraseNow();
+    }
+  }
+
+  // The next featured item may begin only after BOTH the outgoing preview and
+  // its title have completed. This keeps the video running throughout the
+  // reverse-typing animation instead of stopping it when the title disappears.
+  function maybeAdvanceCompletedHero(fileId) {
+    if (!fileId || fileId !== state.heroFeaturedId || state.page !== "discover" || document.hidden) return;
+    if (!state.heroPreviewFinished || !state.heroTitleFinished || state.heroAdvanceTriggered) return;
+    state.heroAdvanceTriggered = true;
+    advanceHero();
+  }
+
+  function markHeroPreviewFinished(fileId) {
+    if (!fileId || fileId !== state.heroFeaturedId) return;
+    state.heroPreviewFinished = true;
+    requestHeroTitleExit(fileId);
+    maybeAdvanceCompletedHero(fileId);
+  }
+
+  function markHeroTitleFinished(fileId) {
+    if (!fileId || fileId !== state.heroFeaturedId) return;
+    state.heroTitleFinished = true;
+    maybeAdvanceCompletedHero(fileId);
+  }
+
   function startHeroPreview(file, options = {}) {
     const ambienceOnly = options.ambienceOnly === true;
-    if ((!ambienceOnly && state.page !== "discover") ||
-        (ambienceOnly && (state.page === "discover" || !playerLayer.hidden)) ||
+    const previewBlockedByPlayer = ambienceOnly ? isPlayerPresented() : isFullPlayerPresented();
+    if (previewBlockedByPlayer ||
+        (!ambienceOnly && state.page !== "discover") ||
+        (ambienceOnly && state.page === "discover") ||
         !file || file.type !== "video") {
       if (!ambienceOnly) releaseHeroPreviewHold(file?.id);
       return;
@@ -454,7 +666,7 @@
       (ambienceOnly
         ? state.page !== "discover"
         : state.page === "discover" && state.heroFeaturedId === file.id) &&
-      playerLayer.hidden &&
+      !(ambienceOnly ? isPlayerPresented() : isFullPlayerPresented()) &&
       !document.hidden;
 
     const clearPlaybackWatchdogs = () => {
@@ -464,6 +676,18 @@
       state.previewPlaybackWatchdog = null;
     };
 
+    const synchronizeHeroTitleExit = () => {
+      if (ambienceOnly || !state.heroPreviewWaiting || state.heroExitRequested) return;
+      const duration = Number(previewVideo.duration);
+      if (!Number.isFinite(duration) || duration <= 0) return;
+      const remainingMs = Math.max(0, (duration - (Number(previewVideo.currentTime) || 0)) * 1000);
+      const eraseBudgetMs = Math.min(3200, Math.max(1050, titleOf(file).length * 34 + 420));
+      // Begin reverse typing while the outgoing preview is still moving. For
+      // unusually long titles, latch the request so erasing begins as soon as
+      // the forward typing finishes rather than waiting for the video to end.
+      if (remainingMs <= eraseBudgetMs) requestHeroTitleExit(file.id);
+    };
+
     const skipPreview = reason => {
       if (!isCurrent() || endedHandled) return;
       endedHandled = true;
@@ -471,7 +695,7 @@
       console.warn(`[NEXORA] Skipping ${ambienceOnly ? "ambience" : "Discover"} preview for ${titleOf(file)}: ${reason}`);
       stopActivePreview();
       if (ambienceOnly) scheduleAmbientPreviewAdvance(950);
-      else releaseHeroPreviewHold(file.id);
+      else markHeroPreviewFinished(file.id);
     };
 
     const finishPreview = () => {
@@ -483,7 +707,7 @@
         stopActivePreview();
         scheduleAmbientPreviewAdvance(700);
       } else {
-        releaseHeroPreviewHold(file.id);
+        markHeroPreviewFinished(file.id);
       }
     };
 
@@ -497,7 +721,8 @@
       state.previewPlaybackStartTimer = null;
       previewVideo.classList.add("is-visible");
       previewVideo.dataset.playRequested = "true";
-      schedulePreviewAmbience(file);
+      if (!ambienceOnly) revealHeroTransitionBridge();
+      startPreviewAmbienceStream(file);
 
       // The same bounded watchdog protects both visible hero playback and the
       // quiet background ambience cycle without creating another video decoder.
@@ -507,6 +732,7 @@
           return;
         }
 
+        synchronizeHeroTitleExit();
         const now = Date.now();
         const duration = Number(previewVideo.duration);
         const currentTime = Number(previewVideo.currentTime) || 0;
@@ -596,6 +822,7 @@
     previewVideo.addEventListener("playing", markPlaybackStarted, listenerOptions);
     previewVideo.addEventListener("timeupdate", () => {
       if (!isCurrent() || endedHandled) return;
+      synchronizeHeroTitleExit();
       const duration = Number(previewVideo.duration);
       if (Number.isFinite(duration) && duration > 0 && previewVideo.currentTime >= duration - 0.04) {
         finishPreview();
@@ -609,9 +836,22 @@
     target.appendChild(previewVideo);
     // The hero retains its full 1080p-capable source; background-only ambience
     // needs fewer pixels because it is blurred, so keep that cycle lightweight.
-    previewVideo.src = previewURL(file, 8, ambienceOnly ? 720 : 1080);
+    // When a movie is already playing in the floating window, keep the second
+    // decoder at 720p to reduce GPU bandwidth while preserving a real hero preview.
+    previewVideo.src = previewURL(file, 8, previewQuality(ambienceOnly));
     previewVideo.load();
     requestPlaybackAndReveal();
+  }
+
+  function previewQuality(ambienceOnly = false) {
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const constrained = Boolean(connection?.saveData ||
+      (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
+      (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4));
+    // The current preview endpoint emits either 720p or 1080p, so constrained
+    // devices use the supported 720p tier rather than requesting a fake 480p.
+    if (ambienceOnly || !miniPlayer.hidden) return 720;
+    return constrained ? 720 : 1080;
   }
 
   function scheduleAmbientPreviewAdvance(delay = 700) {
@@ -623,7 +863,7 @@
   }
 
   function startAmbientPreviewCycle(options = {}) {
-    if (state.page === "discover" || document.hidden || !playerLayer.hidden) return;
+    if (state.page === "discover" || document.hidden || isPlayerPresented()) return;
     if (state.activePreviewKind === "ambience" && state.activePreviewFile) return;
     const resumeCurrent = options.resumeCurrent === true
       ? state.fileById.get(state.featuredSequenceLastId)
@@ -635,12 +875,20 @@
 
   function startCardPreview(card) {
     if (!card || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    // Card previews remain available while playback is in the floating mini-player.
+    // Only the expanded player should suppress hover previews; miniPlayer is an
+    // independent overlay and does not own the card-preview decoder.
+    if (isFullPlayerPresented()) return;
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (connection?.saveData || (navigator.deviceMemory && navigator.deviceMemory <= 2)) return;
     const file = state.fileById.get(card.dataset.fileId);
     if (!file || file.type !== "video") return;
     const target = card.querySelector(".media-art");
     if (!target || !target.isConnected) return;
     if (state.activeHoverCard === card && state.cardPreviewFile?.id === file.id && cardPreviewVideo.isConnected) return;
 
+    // The card uses its own reusable decoder. Leave the hero/ambience video
+    // and its timers completely untouched while this local preview is active.
     stopCardPreview();
     const token = state.cardPreviewToken;
     const controller = new AbortController();
@@ -729,7 +977,7 @@
   document.addEventListener("pointerout", event => {
     const card = event.target.closest?.(".media-card[data-file-id]");
     if (!card || card.contains(event.relatedTarget)) return;
-    ["--card-light-x", "--card-light-y", "--card-tilt-x", "--card-tilt-y"].forEach(name => card.style.removeProperty(name));
+    ["--card-light-x", "--card-light-y"].forEach(name => card.style.removeProperty(name));
     if (state.pendingCardPointer?.card === card) state.pendingCardPointer = null;
     if (state.activeHoverCard === card) stopCardPreview(card);
   });
@@ -755,8 +1003,6 @@
       const y = Math.max(0, Math.min(100, ((pending.clientY - rect.top) / rect.height) * 100));
       pending.card.style.setProperty("--card-light-x", `${x.toFixed(1)}%`);
       pending.card.style.setProperty("--card-light-y", `${y.toFixed(1)}%`);
-      pending.card.style.setProperty("--card-tilt-x", `${((50 - y) / 50 * 1.15).toFixed(2)}deg`);
-      pending.card.style.setProperty("--card-tilt-y", `${((x - 50) / 50 * 1.35).toFixed(2)}deg`);
     });
   }, { passive: true });
 
@@ -771,6 +1017,9 @@
     clearTimeout(state.typingTimer);
     const heading = byId("hero-title");
     const token = ++state.typingToken;
+    state.heroTitleReadyToErase = false;
+    state.heroExitRequested = false;
+    state.heroEraseNow = null;
     let index = 0;
     const typeDelay = window.matchMedia("(max-width: 600px)").matches ? 78 : 68;
     const eraseDelay = 34;
@@ -785,13 +1034,14 @@
         state.typingTimer = setTimeout(write, /[.!?…,:;]/.test(character) ? typeDelay + 220 : typeDelay);
         return;
       }
-      state.typingTimer = setTimeout(erase, 2200);
+      state.heroTitleReadyToErase = true;
+      state.typingTimer = setTimeout(erase, state.heroExitRequested ? 0 : 2200);
     };
 
     const erase = () => {
       if (token !== state.typingToken || state.page !== "discover" || document.hidden) return;
       if (holdUntilPreviewEnds && state.heroPreviewWaiting) {
-        // Keep the featured title visible for the entire preview duration.
+        // Wait for the duration-aware exit request before beginning reverse typing.
         state.heroErasePending = true;
         state.heroResumeAfterPreview = () => {
           if (token !== state.typingToken || state.page !== "discover") return;
@@ -807,9 +1057,12 @@
       heading.classList.remove("typing");
       state.heroErasePending = false;
       state.heroResumeAfterPreview = null;
+      state.heroTitleReadyToErase = false;
+      state.heroEraseNow = null;
       onComplete();
     };
 
+    state.heroEraseNow = erase;
     state.heroResumeAfterPreview = null;
     write();
   }
@@ -828,21 +1081,77 @@
 
   function advanceHero() {
     if (state.page !== "discover" || document.hidden) return;
-    if (state.activeHoverCard?.isConnected) {
-      state.heroTimer = setTimeout(advanceHero, 1200);
-      return;
-    }
+    // Hero rotation is independent of a locally hovered card.
     const featured = chooseFeaturedFile();
     if (featured) showFeatured(featured);
     else showEmptyHero();
   }
 
+  function captureHeroTransitionBridge() {
+    const hero = byId("hero");
+    const canCapture = hero && state.activePreviewKind === "hero" &&
+      state.activePreviewFile?.id === state.heroFeaturedId &&
+      previewVideo.isConnected && previewVideo.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+      previewVideo.videoWidth > 0 && previewVideo.videoHeight > 0;
+    if (!canCapture) return false;
+
+    try {
+      const width = Math.min(640, previewVideo.videoWidth);
+      const height = Math.max(1, Math.round(width * previewVideo.videoHeight / previewVideo.videoWidth));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d", { alpha: false });
+      if (!context) return false;
+      context.drawImage(previewVideo, 0, 0, width, height);
+      const frame = canvas.toDataURL("image/jpeg", 0.82);
+      let bridge = byId("hero-preview-bridge");
+      if (!bridge) {
+        bridge = document.createElement("div");
+        bridge.id = "hero-preview-bridge";
+        bridge.className = "hero-preview-bridge";
+        bridge.setAttribute("aria-hidden", "true");
+        hero.insertBefore(bridge, hero.firstChild);
+      }
+      bridge.style.backgroundImage = `url("${frame}")`;
+      clearTimeout(state.heroTransitionCleanupTimer);
+      state.heroTransitionCleanupTimer = null;
+      return true;
+    } catch (error) {
+      console.info("[NEXORA] Hero transition frame was unavailable:", error?.name || error);
+      return false;
+    }
+  }
+
+  function revealHeroTransitionBridge() {
+    const bridge = byId("hero-preview-bridge");
+    if (!bridge) return;
+    clearTimeout(state.heroTransitionCleanupTimer);
+    state.heroTransitionCleanupTimer = window.setTimeout(() => {
+      byId("hero-preview-bridge")?.remove();
+      state.heroTransitionCleanupTimer = null;
+    }, 1050);
+  }
+
+  function clearHeroTransitionBridge() {
+    clearTimeout(state.heroTransitionCleanupTimer);
+    state.heroTransitionCleanupTimer = null;
+    byId("hero-preview-bridge")?.remove();
+  }
+
   function showEmptyHero() {
     clearHeroTimers();
+    clearHeroTransitionBridge();
     state.typingToken += 1;
     state.heroPreviewWaiting = false;
     state.heroErasePending = false;
     state.heroResumeAfterPreview = null;
+    state.heroTitleReadyToErase = false;
+    state.heroTitleFinished = false;
+    state.heroPreviewFinished = false;
+    state.heroAdvanceTriggered = false;
+    state.heroExitRequested = false;
+    state.heroEraseNow = null;
     state.heroFeaturedId = null;
     stopActivePreview();
 
@@ -875,10 +1184,17 @@
   function showFeatured(file) {
     if (!file || state.page !== "discover") return showEmptyHero();
 
+    if (!captureHeroTransitionBridge()) clearHeroTransitionBridge();
     clearHeroTimers();
     state.heroPreviewWaiting = false;
     state.heroErasePending = false;
     state.heroResumeAfterPreview = null;
+    state.heroTitleReadyToErase = false;
+    state.heroTitleFinished = false;
+    state.heroPreviewFinished = false;
+    state.heroAdvanceTriggered = false;
+    state.heroExitRequested = false;
+    state.heroEraseNow = null;
     stopActivePreview();
     state.heroFeaturedId = file.id;
 
@@ -903,7 +1219,8 @@
     // Keep the title visible for the full video-preview duration. No poster,
     // representative still, or static thumbnail is requested in the hero.
     state.heroPreviewWaiting = true;
-    typeHeroTitle(titleOf(file), advanceHero, true);
+    typeHeroTitle(titleOf(file), () => markHeroTitleFinished(file.id), true);
+    animateHeroFeature();
     startHeroPreview(file);
 
     clearTimeout(state.heroPreviewFailsafeTimer);
@@ -911,7 +1228,7 @@
       if (state.page !== "discover" || state.heroFeaturedId !== file.id || !state.heroPreviewWaiting) return;
       console.warn(`[NEXORA] Releasing Discover sequence safety hold for ${titleOf(file)}.`);
       stopActivePreview();
-      releaseHeroPreviewHold(file.id);
+      markHeroPreviewFinished(file.id);
     }, 45000);
   }
 
@@ -949,7 +1266,17 @@
     });
     if (state.query.trim()) {
       const q = state.query.trim().toLowerCase();
-      output = output.filter(file => [file.name, file.fileName, file.path, categoryOf(file), genreOf(file), subgenreOf(file), partsOf(file).join(" ")].join(" ").toLowerCase().includes(q));
+      output = output.filter(file => {
+        const indexedText = state.searchIndex?.get(file.id);
+        // Search text is prepared once per library load. Avoid rebuilding and
+        // lowercasing the same metadata string on every keystroke while still
+        // preserving a fallback for files not present in the current index.
+        const searchable = indexedText || [
+          file.name, file.fileName, file.path, categoryOf(file), genreOf(file),
+          subgenreOf(file), partsOf(file).join(" ")
+        ].join(" ").toLowerCase();
+        return searchable.includes(q);
+      });
     }
     return sortFiles(output);
   }
@@ -960,19 +1287,25 @@
     const thumb = file.type === "video" ? thumbnailURL(file, compact ? 240 : 640) : "";
     const label = file.type === "audio" ? "MUSIC" : categoryOf(file).toUpperCase();
     const metadata = [categoryOf(file), genreOf(file)].filter(Boolean).join(" · ");
-    const image = thumb ? `<img class="media-art-image" src="${esc(thumb)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : "";
+    const image = thumb ? `<img class="media-art-image" src="${esc(thumb)}" alt="" loading="lazy" decoding="async" data-remove-on-error="true">` : "";
     if (compact) {
       return `<button class="compact-card" type="button" data-file-id="${esc(file.id)}"><span class="compact-thumb">${image}</span><span class="compact-copy"><strong>${esc(titleOf(file))}</strong><small>${esc(metadata)}</small></span></button>`;
     }
     const bookmarkIcon = state.favourites.has(file.id) ? "i-bookmark-filled" : "i-bookmark";
-    return `<article class="media-card" data-file-id="${esc(file.id)}" tabindex="0" role="button" aria-label="Play ${esc(titleOf(file))}"><div class="media-art">${image}<span class="media-art-label">${esc(label)}</span><button class="card-bookmark" data-action="bookmark" type="button" aria-label="${state.favourites.has(file.id) ? "Remove from favourites" : "Add to favourites"}" aria-pressed="${state.favourites.has(file.id)}"><svg class="icon"><use href="#${bookmarkIcon}"/></svg></button></div><strong class="media-card-title" title="${esc(titleOf(file))}">${esc(titleOf(file))}</strong></article>`;
+    return `<article class="media-card" data-file-id="${esc(file.id)}"><div class="media-art"><button class="media-card-open" type="button" aria-label="Play ${esc(titleOf(file))}">${image}<span class="media-art-label" aria-hidden="true">${esc(label)}</span></button><button class="card-bookmark" data-action="bookmark" type="button" aria-label="${state.favourites.has(file.id) ? "Remove from favourites" : "Add to favourites"}" aria-pressed="${state.favourites.has(file.id)}"><svg class="icon" aria-hidden="true"><use href="#${bookmarkIcon}"/></svg></button></div><strong class="media-card-title" title="${esc(titleOf(file))}">${esc(titleOf(file))}</strong></article>`;
   }
 
   function registerQueue(container, files) {
-    const key = `q${++state.queueSerial}`;
+    // Keep one queue registry entry per container and update its contents.
+    // The previous implementation allocated a fresh ID list on each refresh,
+    // retaining dozens of obsolete copies for long-running sessions.
+    const key = container.dataset.queueKey || `q${++state.queueSerial}`;
     container.dataset.queueKey = key;
     state.queueRegistry.set(key, files.map(file => file.id));
-    if (state.queueRegistry.size > 60) state.queueRegistry.delete(state.queueRegistry.keys().next().value);
+    if (state.queueRegistry.size > 60) {
+      const oldest = state.queueRegistry.keys().next().value;
+      if (oldest !== key) state.queueRegistry.delete(oldest);
+    }
     return key;
   }
 
@@ -990,6 +1323,39 @@
     next.hidden = !overflowing;
     previous.disabled = !overflowing || row.scrollLeft <= 2;
     next.disabled = !overflowing || row.scrollLeft >= maximum - 2;
+  }
+
+  function animateRailScroll(row, targetLeft, shell) {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (row.__nexoraRailFrame) cancelAnimationFrame(row.__nexoraRailFrame);
+    row.__nexoraRailFrame = 0;
+    if (reducedMotion) {
+      row.scrollLeft = targetLeft;
+      updateRowNavigation(shell);
+      return;
+    }
+    const startLeft = row.scrollLeft;
+    const distance = targetLeft - startLeft;
+    if (Math.abs(distance) < 1) return;
+    const duration = Math.max(420, Math.min(660, 390 + Math.abs(distance) / Math.max(1, row.clientWidth) * 230));
+    const startedAt = performance.now();
+    row.classList.add("is-programmatic-scroll");
+    shell.classList.add("is-scrolling");
+    const frame = now => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 4);
+      row.scrollLeft = startLeft + distance * eased;
+      if (progress < 1) {
+        row.__nexoraRailFrame = requestAnimationFrame(frame);
+      } else {
+        row.scrollLeft = targetLeft;
+        row.__nexoraRailFrame = 0;
+        row.classList.remove("is-programmatic-scroll");
+        shell.classList.remove("is-scrolling");
+        updateRowNavigation(shell);
+      }
+    };
+    row.__nexoraRailFrame = requestAnimationFrame(frame);
   }
 
   function setupHomeRowNavigation() {
@@ -1024,8 +1390,18 @@
           const maximum = Math.max(0, row.scrollWidth - row.clientWidth);
           const nextLeft = Math.max(0, Math.min(maximum, row.scrollLeft + (direction === "next" ? distance : -distance)));
           const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-          row.scrollTo({ left: nextLeft, behavior: reducedMotion ? "auto" : "smooth" });
-          requestAnimationFrame(() => updateRowNavigation(shell));
+          shell.classList.remove("is-moving-next", "is-moving-prev");
+          shell.classList.add(direction === "next" ? "is-moving-next" : "is-moving-prev");
+          if (!reducedMotion && typeof button.animate === "function") {
+            button.animate([
+              { transform: "translateY(-50%) scale(1)" },
+              { transform: "translateY(-50%) scale(.88)" },
+              { transform: "translateY(-50%) scale(1)" }
+            ], { duration: 320, easing: "cubic-bezier(.22,.78,.22,1)" });
+          }
+          animateRailScroll(row, nextLeft, shell);
+          window.clearTimeout(shell.__nexoraMotionTimer);
+          shell.__nexoraMotionTimer = window.setTimeout(() => shell.classList.remove("is-moving-next", "is-moving-prev"), 720);
         }, { capture: true });
         shell.appendChild(button);
         return button;
@@ -1033,11 +1409,25 @@
 
       createButton("prev", "Scroll to previous titles", "m15 18-6-6 6-6");
       createButton("next", "Scroll to next titles", "m9 18 6-6-6-6");
-      row.addEventListener("scroll", () => updateRowNavigation(shell), { passive: true });
+      let rowMeasureFrame = 0;
+      row.addEventListener("scroll", () => {
+        if (rowMeasureFrame) return;
+        rowMeasureFrame = requestAnimationFrame(() => {
+          rowMeasureFrame = 0;
+          updateRowNavigation(shell);
+        });
+      }, { passive: true });
       updateRowNavigation(shell);
     });
 
-    const refresh = () => $$(".media-row-shell").forEach(updateRowNavigation);
+    let refreshFrame = 0;
+    const refresh = () => {
+      if (refreshFrame) return;
+      refreshFrame = requestAnimationFrame(() => {
+        refreshFrame = 0;
+        $$(".media-row-shell").forEach(updateRowNavigation);
+      });
+    };
     window.addEventListener("resize", refresh, { passive: true });
     if (typeof ResizeObserver === "function") {
       const observer = new ResizeObserver(refresh);
@@ -1045,9 +1435,56 @@
     }
   }
 
+  let posterGridObserver = null;
+  // Smaller initial DOM batches keep poster-grid creation from monopolising the
+  // main thread during vertical scrolling. The observer still preloads 680px
+  // ahead, so the user sees the same titles and discovery behaviour.
+  const POSTER_GRID_BATCH_SIZE = 32;
+
+  function appendPosterGridBatch(container = byId("poster-grid")) {
+    const files = container.__nexoraGridFiles || [];
+    const start = Number(container.dataset.renderedCount) || 0;
+    const end = Math.min(files.length, start + POSTER_GRID_BATCH_SIZE);
+    if (end <= start) return;
+    const sentinel = container.querySelector(".grid-load-sentinel");
+    const template = document.createElement("template");
+    template.innerHTML = files.slice(start, end).map(file => cardMarkup(file)).join("");
+    container.insertBefore(template.content, sentinel || null);
+    container.dataset.renderedCount = String(end);
+    if (end >= files.length) {
+      sentinel?.remove();
+      posterGridObserver?.disconnect();
+      posterGridObserver = null;
+    }
+  }
+
+  function observePosterGridSentinel(container) {
+    const sentinel = container.querySelector(".grid-load-sentinel");
+    if (!sentinel) return;
+    if (typeof IntersectionObserver !== "function") {
+      const append = () => {
+        if (!container.isConnected || !container.querySelector(".grid-load-sentinel")) return;
+        appendPosterGridBatch(container);
+        if (container.querySelector(".grid-load-sentinel")) requestAnimationFrame(append);
+      };
+      requestAnimationFrame(append);
+      return;
+    }
+    posterGridObserver = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) appendPosterGridBatch(container);
+    }, { root: null, rootMargin: "680px 0px", threshold: 0 });
+    posterGridObserver.observe(sentinel);
+  }
+
   function renderCards(container, files, emptyText = "Nothing here yet.", compact = false) {
     if (!container) return;
-    const signature = files.map(file => `${file.id}:${state.favourites.has(file.id) ? 1 : 0}`).join("|");
+    // Include mutable file metadata so periodic library refreshes update
+    // titles, file sizes and modified files instead of leaving stale cards.
+    const signature = JSON.stringify(files.map(file => [
+      file.id, file.path, file.name, file.fileName, file.type, file.extension,
+      file.category, file.genre, Array.isArray(file.folders) ? file.folders.join("/") : "",
+      file.size, file.modified, state.favourites.has(file.id) ? 1 : 0
+    ]));
     registerQueue(container, files);
     if (container.dataset.renderSignature === signature && container.childElementCount) {
       requestAnimationFrame(() => updateRowNavigation(container.closest(".media-row-shell")));
@@ -1055,7 +1492,20 @@
     }
     if (state.activePreviewTarget && container.contains(state.activePreviewTarget)) stopActivePreview();
     if (state.activeHoverCard && container.contains(state.activeHoverCard)) stopCardPreview(state.activeHoverCard);
-    container.innerHTML = files.length ? files.map(file => cardMarkup(file, compact)).join("") : `<p class="empty-state">${esc(emptyText)}</p>`;
+    if (container.id === "poster-grid") {
+      posterGridObserver?.disconnect();
+      posterGridObserver = null;
+      container.__nexoraGridFiles = files;
+      container.dataset.renderedCount = "0";
+    }
+    if (container.id === "poster-grid" && files.length > POSTER_GRID_BATCH_SIZE) {
+      const initial = files.slice(0, POSTER_GRID_BATCH_SIZE).map(file => cardMarkup(file)).join("");
+      container.innerHTML = `${initial}<div class="grid-load-sentinel" aria-live="polite">More titles load as you browse</div>`;
+      container.dataset.renderedCount = String(POSTER_GRID_BATCH_SIZE);
+      observePosterGridSentinel(container);
+    } else {
+      container.innerHTML = files.length ? files.map(file => cardMarkup(file, compact)).join("") : `<p class="empty-state">${esc(emptyText)}</p>`;
+    }
     container.dataset.renderSignature = signature;
     requestAnimationFrame(() => updateRowNavigation(container.closest(".media-row-shell")));
   }
@@ -1080,28 +1530,42 @@
     const card = event.target.closest("[data-file-id]");
     if (!card) return;
     const file = state.fileById.get(card.dataset.fileId);
-    if (file) openPlayer(file, queueFromElement(card));
+    if (file) {
+      if (card.closest("#search-results")) closeSearch({ restoreFocus: false });
+      openPlayer(file, queueFromElement(card));
+    }
   });
 
-  document.addEventListener("keydown", event => {
-    const card = event.target.closest?.('.media-card[role="button"]');
-    if (!card || event.target.closest("button")) return;
-    if (event.key !== "Enter" && event.key !== " ") return;
-    event.preventDefault();
-    const file = state.fileById.get(card.dataset.fileId);
-    if (file) openPlayer(file, queueFromElement(card));
-  });
 
   /* ---------- Home rows ---------- */
+
+  function isContinueWatchingFile(file) {
+    const progress = state.progress[file.id];
+    const time = Number(progress?.time || 0);
+    const duration = Number(progress?.duration || 0);
+    if (!(time > 10)) return false;
+    return !(duration > 0 && duration <= time + 10);
+  }
+
+  function getContinueWatchingFiles() {
+    return state.files
+      .filter(isContinueWatchingFile)
+      .sort((a, b) => Number(state.progress[b.id]?.updatedAt || b.modified || 0) - Number(state.progress[a.id]?.updatedAt || a.modified || 0));
+  }
+
+  function renderContinueWatching() {
+    const watching = getContinueWatchingFiles();
+    renderCards(byId("continue-row"), watching.slice(0, 14), "Your in-progress titles will appear here after you watch something.");
+    byId("continue-section").hidden = false;
+    return watching;
+  }
 
   function renderHome() {
     const recent = sortFiles(state.files).slice(0, 14);
     renderCards(byId("recent-row"), recent, "Your supported media files will appear here.");
     const favourites = state.files.filter(file => state.favourites.has(file.id)).slice(0, 14);
     renderCards(byId("favourite-row"), favourites, "Bookmark titles you want to keep close.");
-    const watching = state.files.filter(file => Number(state.progress[file.id]?.time) > 10 && Number(state.progress[file.id]?.duration) > Number(state.progress[file.id]?.time) + 10);
-    renderCards(byId("continue-row"), watching.slice(0, 14), "Nothing in progress yet.");
-    byId("continue-section").hidden = watching.length === 0;
+    renderContinueWatching();
     renderPicks(false);
   }
 
@@ -1211,6 +1675,20 @@
   }
 
   function renderCollection() {
+    clearTimeout(sectionSearchTimer);
+    if (!state.libraryLoaded) {
+      byId("result-count").textContent = state.libraryOffline ? "OFFLINE" : (state.libraryBusy ? "LOADING" : "CONNECTING");
+      byId("collection-status").textContent = state.libraryOffline ? "Server unavailable" : "Connecting to your media library…";
+      byId("poster-grid").innerHTML = "";
+      byId("taxonomy").hidden = true;
+      byId("empty-library").hidden = false;
+      byId("empty-title").textContent = state.libraryOffline ? "Server connection problem" : "Connecting to your collection";
+      byId("empty-message").textContent = state.libraryOffline
+        ? "Start the NEXORA server and select Retry to reconnect to your media library."
+        : "Looking through your collection…";
+      return;
+    }
+    byId("taxonomy").hidden = false;
     const baseFiles = filesForPage();
     const global = state.page === "library" || state.page === "favourites";
     const category = CATEGORY[state.page];
@@ -1243,6 +1721,19 @@
 
   /* ---------- Navigation ---------- */
 
+  function updateNavigationIndicator() {
+    const nav = byId("main-nav");
+    const active = nav?.querySelector(".nav-link.active");
+    if (!nav || !active) return;
+    // The menu wraps into multiple rows on mobile. Track both axes and the
+    // actual item dimensions so the glass indicator fits the selected cell.
+    nav.style.setProperty("--nav-indicator-x", `${active.offsetLeft}px`);
+    nav.style.setProperty("--nav-indicator-y", `${active.offsetTop}px`);
+    nav.style.setProperty("--nav-indicator-width", `${active.offsetWidth}px`);
+    nav.style.setProperty("--nav-indicator-height", `${active.offsetHeight}px`);
+    nav.classList.add("has-active-indicator");
+  }
+
   function setNavigationOpen(open) {
     const nav = byId("main-nav");
     const toggle = byId("menu-open");
@@ -1250,6 +1741,92 @@
     toggle.setAttribute("aria-expanded", String(Boolean(open)));
     toggle.classList.toggle("is-open", Boolean(open));
     document.body.classList.toggle("nav-open", Boolean(open));
+  }
+
+  function animatePageTransition() {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    state.pageMotionAnimations?.forEach(animation => {
+      try { animation.cancel(); } catch {}
+    });
+    state.pageMotionAnimations = [];
+    if (reduceMotion) return;
+    if (typeof Element.prototype.animate !== "function") {
+      const main = $("main");
+      if (!main) return;
+      main.classList.remove("nexora-page-transition-fallback");
+      void main.offsetWidth;
+      main.classList.add("nexora-page-transition-fallback");
+      window.setTimeout(() => main.classList.remove("nexora-page-transition-fallback"), 460);
+      return;
+    }
+
+    const discover = state.page === "discover";
+    const selectors = discover
+      ? ["#hero", "#continue-section", "#recent-section", "#picks-section", "#favourite-section"]
+      : [".collection-topline", ".browse-toolbar", "#section-search-results", "#taxonomy", ".collection-meta", "#poster-grid", "#empty-library"];
+    const targets = selectors.flatMap(selector => $$(selector)).filter(element =>
+      element && !element.hidden && element.getClientRects().length
+    );
+
+    // Only reveal the first few cards that are actually on/near the viewport.
+    // The previous release could schedule 24 card animations on every page
+    // change, including blur filters. Keep the entrance cinematic but light.
+    const candidates = discover
+      ? $$(".home-section:not([hidden]) .media-row .media-card")
+      : $$("#poster-grid .media-card");
+    const viewportBottom = window.innerHeight + 180;
+    const visibleCards = candidates.filter(element => {
+      const rect = element.getBoundingClientRect();
+      return rect.top < viewportBottom && rect.bottom > -80;
+    }).slice(0, 8);
+    const sequence = [...targets, ...visibleCards];
+
+    sequence.forEach((element, index) => {
+      const delay = Math.min(index * (index < targets.length ? 34 : 22), 190);
+      const animation = element.animate([
+        { opacity: 0, transform: "translate3d(0, 17px, 0) scale(.992)" },
+        { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" }
+      ], {
+        duration: index < targets.length ? 470 : 360,
+        delay,
+        easing: "cubic-bezier(.18,.72,.22,1)",
+        fill: "both"
+      });
+      state.pageMotionAnimations.push(animation);
+      animation.finished.then(() => {
+        try { animation.cancel(); } catch {}
+        state.pageMotionAnimations = state.pageMotionAnimations.filter(item => item !== animation);
+      }).catch(() => {});
+    });
+  }
+
+  function animateHeroFeature() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const content = byId("hero").querySelector(".hero-content");
+    state.heroFeatureAnimation?.cancel?.();
+    state.heroFeatureAnimation = content.animate([
+      { opacity: .18, transform: "translate3d(0, 16px, 0)" },
+      { opacity: 1, transform: "translate3d(0, 0, 0)" }
+    ], { duration: 680, easing: "cubic-bezier(.16,.78,.22,1)" });
+  }
+
+  function animatePlayerOpen() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    cancelMiniAnimations();
+    const backdrop = playerLayer.animate(
+      [{ opacity: 0 }, { opacity: 1 }],
+      { duration: 380, easing: "ease-out" }
+    );
+    const panel = playerWindow.animate([
+      { opacity: 0, transform: "translate3d(0, 22px, 0) scale(.982)" },
+      { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)" }
+    ], { duration: 620, easing: "cubic-bezier(.16,.78,.22,1)" });
+    state.miniAnimations = [backdrop, panel];
+    Promise.all([backdrop.finished.catch(() => {}), panel.finished.catch(() => {})]).then(() => {
+      if (state.wasMinimized || playerLayer.hidden) return;
+      backdrop.cancel(); panel.cancel();
+      state.miniAnimations = [];
+    });
   }
 
   function navigate(page) {
@@ -1268,10 +1845,19 @@
       state.fileById.get(state.featuredSequenceLastId) || null;
 
     state.page = page;
+    const pageHeading = byId("page-heading");
+    if (pageHeading) pageHeading.textContent = page === "discover" ? "Discover" : "Your collection";
     state.heroPreviewWaiting = false;
     state.heroErasePending = false;
     state.heroResumeAfterPreview = null;
+    state.heroTitleReadyToErase = false;
+    state.heroTitleFinished = false;
+    state.heroPreviewFinished = false;
+    state.heroAdvanceTriggered = false;
+    state.heroExitRequested = false;
+    state.heroEraseNow = null;
     document.documentElement.dataset.page = page;
+    if (page !== "discover") clearHeroTransitionBridge();
     stopCardPreview();
     state.genre = "All";
     state.subgenre = "All";
@@ -1282,12 +1868,18 @@
 
     const discover = page === "discover";
     byId("hero").hidden = !discover;
-    byId("continue-section").hidden = !discover || !state.files.some(file => Number(state.progress[file.id]?.time) > 10);
+    byId("continue-section").hidden = !discover;
     byId("recent-section").hidden = !discover;
     byId("picks-section").hidden = !discover;
     byId("favourite-section").hidden = !discover;
     byId("collection").hidden = discover;
-    $$(".nav-link").forEach(button => button.classList.toggle("active", button.dataset.page === page));
+    $$(".nav-link").forEach(button => {
+      const active = button.dataset.page === page;
+      button.classList.toggle("active", active);
+      if (active) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    });
+    updateNavigationIndicator();
     setNavigationOpen(false);
 
     if (discover) {
@@ -1310,14 +1902,14 @@
       if (previousPage === "discover") {
         const resumeFile = handoffKind === "hero" && handoffFile ? handoffFile : previousFeatured;
         stopActivePreview();
-        if (resumeFile && state.fileById.has(resumeFile.id) && playerLayer.hidden && !document.hidden) {
+        if (resumeFile && state.fileById.has(resumeFile.id) && !isPlayerPresented() && !document.hidden) {
           // Restart the same featured item off-screen; it remains the same
           // sequence entry and the shared cursor advances only when it ends.
           startHeroPreview(state.fileById.get(resumeFile.id), { ambienceOnly: true });
         } else {
           startAmbientPreviewCycle();
         }
-      } else if (handoffKind !== "ambience" || !handoffFile || !playerLayer.hidden) {
+      } else if (handoffKind !== "ambience" || !handoffFile || isPlayerPresented()) {
         stopActivePreview();
         startAmbientPreviewCycle();
       }
@@ -1325,6 +1917,7 @@
       // or restart the one global preview/ambience sequence.
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
+    animatePageTransition();
   }
 
   document.addEventListener("click", event => {
@@ -1358,14 +1951,20 @@
 
   window.addEventListener("resize", () => {
     if (window.innerWidth > 980) setNavigationOpen(false);
+    requestAnimationFrame(updateNavigationIndicator);
   }, { passive: true });
+  requestAnimationFrame(updateNavigationIndicator);
 
   /* ---------- Section-local and overlay search ---------- */
 
+  let sectionSearchTimer = null;
   function onSectionSearch(value) {
     state.query = value;
     byId("clear-section-search").hidden = !value;
-    if (state.page !== "discover") renderCollection();
+    clearTimeout(sectionSearchTimer);
+    if (state.page !== "discover") {
+      sectionSearchTimer = window.setTimeout(() => renderCollection(), 90);
+    }
   }
 
   byId("section-search").addEventListener("input", event => onSectionSearch(event.target.value));
@@ -1383,52 +1982,209 @@
     return state.page === "discover" ? [...state.files] : filesForPage();
   }
 
+  let overlaySearchTimer = null;
+  let overlaySearchToken = 0;
+  let overlayCloseAnimation = null;
+  const MAX_OVERLAY_SEARCH_RESULTS = 60;
+
   function openSearch() {
-    byId("search-layer").hidden = false;
+    clearTimeout(overlaySearchTimer);
+    overlaySearchToken += 1;
+    overlayCloseAnimation?.cancel?.();
+    overlayCloseAnimation = null;
+    const layer = byId("search-layer");
+    layer.hidden = false;
+    layer.inert = false;
+    layer.classList.remove("is-closing");
     byId("search-input").value = "";
-    renderOverlaySearch("");
-    byId("search-input").focus();
+    renderOverlaySearch("", overlaySearchToken);
+    requestAnimationFrame(() => {
+      if (!layer.hidden) byId("search-input").focus();
+    });
   }
 
-  function closeSearch() {
-    byId("search-layer").hidden = true;
+  function closeSearch(options = {}) {
+    clearTimeout(overlaySearchTimer);
+    overlaySearchTimer = null;
+    const token = ++overlaySearchToken;
+    const layer = byId("search-layer");
+    const card = layer.querySelector(".search-overlay-card");
+    const wasOpen = !layer.hidden;
+    if (!wasOpen) return;
+
+    const finishClose = () => {
+      if (token !== overlaySearchToken) return;
+      layer.hidden = true;
+      layer.inert = false;
+      layer.classList.remove("is-closing");
+      overlayCloseAnimation = null;
+      if (options.restoreFocus !== false) {
+        requestAnimationFrame(() => byId("search-open")?.focus({ preventScroll: true }));
+      }
+    };
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reducedMotion && typeof card.animate === "function") {
+      layer.inert = true;
+      layer.classList.add("is-closing");
+      overlayCloseAnimation = card.animate([
+        { opacity: 1, transform: "translate3d(0,0,0) scale(1)" },
+        { opacity: 0, transform: "translate3d(0,-9px,0) scale(.988)" }
+      ], { duration: 190, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" });
+      overlayCloseAnimation.finished.then(finishClose).catch(() => {});
+    } else {
+      finishClose();
+    }
   }
 
-  function renderOverlaySearch(value) {
-    const query = String(value || "").trim().toLowerCase();
+  function renderOverlaySearch(value, token = overlaySearchToken) {
+    if (token !== overlaySearchToken || byId("search-layer").hidden) return;
+    const query = String(value || "").trim().toLocaleLowerCase();
     const scope = overlayScope();
-    const matches = query ? scope.filter(file => [file.name, file.fileName, file.path, categoryOf(file), genreOf(file), subgenreOf(file)].join(" ").toLowerCase().includes(query)) : [];
+    const matches = query ? scope.filter(file => (state.searchIndex.get(file.id) ||
+      [file.name, file.fileName, file.path, categoryOf(file), genreOf(file), subgenreOf(file)].join(" ").toLocaleLowerCase()).includes(query)) : [];
     byId("overlay-search-scope").textContent = state.page === "discover" || state.page === "library" ? "ALL LIBRARY" : (CATEGORY[state.page] || "YOUR COLLECTION").toUpperCase();
     const container = byId("search-results");
+    container.setAttribute("aria-live", "polite");
     const key = registerQueue(container, matches);
-    container.innerHTML = matches.map(file => {
+    const visible = matches.slice(0, MAX_OVERLAY_SEARCH_RESULTS);
+    const resultMarkup = visible.map(file => {
       const src = file.type === "video" ? thumbnailURL(file, 240) : "";
-      return `<button class="overlay-result" type="button" data-file-id="${esc(file.id)}" data-queue-key="${key}"><span class="overlay-result-thumb">${src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</span><span class="overlay-result-copy"><strong>${esc(titleOf(file))}</strong><small>${esc(categoryOf(file))} · ${esc(genreOf(file))}</small></span></button>`;
-    }).join("") || (query ? '<p class="empty-state">No matches in this section.</p>' : '<p class="empty-state">Start typing to search.</p>');
+      return `<button class="overlay-result" type="button" data-file-id="${esc(file.id)}" data-queue-key="${key}"><span class="overlay-result-thumb">${src ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async" data-remove-on-error="true">` : ""}</span><span class="overlay-result-copy"><strong>${esc(titleOf(file))}</strong><small>${esc(categoryOf(file))} · ${esc(genreOf(file))}</small></span></button>`;
+    }).join("");
+    const summary = matches.length > visible.length
+      ? `<p class="search-result-count">Showing ${visible.length} of ${matches.length} matches. Refine your search to narrow the list.</p>`
+      : (matches.length ? `<p class="search-result-count">${matches.length} ${matches.length === 1 ? "match" : "matches"}</p>` : "");
+    container.innerHTML = resultMarkup || (query ? '<p class="empty-state">No matches in this section.</p>' : '<p class="empty-state">Start typing to search.</p>');
+    if (summary) container.insertAdjacentHTML("beforeend", summary);
   }
 
   byId("search-open").addEventListener("click", openSearch);
-  byId("search-close").addEventListener("click", closeSearch);
+  byId("search-close").addEventListener("click", () => closeSearch());
   byId("search-layer").addEventListener("click", event => {
     if (event.target === byId("search-layer")) closeSearch();
   });
-  byId("search-input").addEventListener("input", event => renderOverlaySearch(event.target.value));
+  byId("search-input").addEventListener("input", event => {
+    const value = event.target.value;
+    clearTimeout(overlaySearchTimer);
+    const token = ++overlaySearchToken;
+    overlaySearchTimer = window.setTimeout(() => {
+      overlaySearchTimer = null;
+      renderOverlaySearch(value, token);
+    }, 100);
+  });
+  byId("search-input").addEventListener("keydown", event => {
+    if (event.key === "ArrowDown") {
+      const first = byId("search-results").querySelector(".overlay-result");
+      if (first) { event.preventDefault(); first.focus(); }
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeSearch();
+    }
+  });
+  byId("search-results").addEventListener("keydown", event => {
+    if (!event.target.matches(".overlay-result")) return;
+    const results = [...byId("search-results").querySelectorAll(".overlay-result")];
+    const index = results.indexOf(event.target);
+    if (event.key === "ArrowDown" && index < results.length - 1) {
+      event.preventDefault(); results[index + 1].focus();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (index > 0) results[index - 1].focus(); else byId("search-input").focus();
+    } else if (event.key === "Escape") {
+      event.preventDefault(); closeSearch();
+    }
+  });
 
   /* ---------- Library API ---------- */
+
+  function setLibraryBusy(busy) {
+    const main = byId("main-content");
+    const recent = byId("recent-row");
+    main?.setAttribute("aria-busy", String(Boolean(busy)));
+    recent?.setAttribute("aria-busy", String(Boolean(busy) && !state.libraryLoaded));
+  }
+
+  function showLibraryOffline(message) {
+    state.libraryOffline = true;
+    byId("library-connection-message").textContent = message || "NEXORA cannot reach your local media server. Check that it is running, then retry.";
+    byId("library-connection-error").hidden = false;
+    byId("library-status").textContent = "LIBRARY OFFLINE";
+    if (!state.libraryLoaded) {
+      byId("result-count").textContent = "OFFLINE";
+      byId("recent-row").innerHTML = '<p class="empty-state" role="status">Your library is unavailable until the NEXORA server reconnects.</p>';
+      if (state.page !== "discover") {
+        byId("empty-library").hidden = false;
+        byId("empty-title").textContent = "Server connection problem";
+        byId("empty-message").textContent = "Start the NEXORA server and use Retry to reconnect to your media library.";
+      }
+    } else {
+      byId("library-connection-message").textContent = "The NEXORA server is temporarily unreachable. Your last loaded library is still shown.";
+    }
+  }
+
+  async function fetchWithTimeout(url, timeoutMs) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { cache: "no-store", signal: controller.signal });
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
 
   async function loadLibrary(initial = false) {
     if (state.libraryBusy) return;
     state.libraryBusy = true;
+    setLibraryBusy(true);
+    if (!state.libraryLoaded) {
+      byId("library-status").textContent = "CONNECTING TO YOUR LIBRARY";
+      byId("result-count").textContent = "LOADING";
+      byId("recent-row").innerHTML = '<p class="empty-state" role="status">Looking through your collection…</p>';
+      if (state.page !== "discover") renderCollection();
+    } else {
+      byId("library-status").textContent = "UPDATING YOUR LIBRARY";
+    }
+
     try {
-      const response = await fetch("/api/library", { cache: "no-store" });
-      if (!response.ok) throw new Error(`Library request returned ${response.status}`);
+      let health;
+      try {
+        health = await fetchWithTimeout("/api/health", 5000);
+      } catch (error) {
+        if (error?.name === "AbortError") throw new Error("The NEXORA server did not respond within 5 seconds. Check that it is running, then retry.");
+        throw new Error("The NEXORA server is unreachable. Check the server terminal and retry.");
+      }
+      if (!health.ok) throw new Error(`NEXORA health check returned ${health.status}. Restart the server and retry.`);
+      const healthData = await health.json().catch(() => null);
+      if (!healthData || healthData.success !== true || healthData.status !== "online") {
+        throw new Error("NEXORA is running but did not report a healthy status. Restart the server and retry.");
+      }
+
+      let response;
+      try {
+        response = await fetchWithTimeout("/api/library", 20000);
+      } catch (error) {
+        if (error?.name === "AbortError") throw new Error("The library scan took longer than 20 seconds. The server may be busy; retry shortly.");
+        throw new Error("The NEXORA library endpoint could not be reached. Check the server and retry.");
+      }
+      if (!response.ok) throw new Error(`Library request returned ${response.status}. Check the NEXORA server terminal and retry.`);
       const data = await response.json();
-      if (!data || !Array.isArray(data.files)) throw new Error("The server response did not contain a files array.");
+      if (!data || !Array.isArray(data.files)) throw new Error("The NEXORA server returned an invalid library response. Restart the server and retry.");
+
       state.files = data.files.filter(file => file && typeof file.id === "string" && typeof file.path === "string");
       state.fileById = new Map(state.files.map(file => [file.id, file]));
+      state.searchIndex = new Map(state.files.map(file => [file.id,
+        [file.name, file.fileName, file.path, categoryOf(file), genreOf(file), subgenreOf(file), partsOf(file).join(" ")]
+          .join(" ").toLowerCase()
+      ]));
       state.folders = Array.isArray(data.folders) ? data.folders : [];
+      state.libraryLoaded = true;
+      state.libraryOffline = false;
+      byId("library-connection-error").hidden = true;
       byId("library-status").textContent = `${state.files.length} TITLES IN YOUR LIBRARY`;
       renderHome();
+      if (!byId("search-layer").hidden) renderOverlaySearch(byId("search-input").value, overlaySearchToken);
       if (state.page !== "discover") {
         renderCollection();
         if (state.activePreviewKind !== "ambience" || !state.activePreviewFile || !state.fileById.has(state.activePreviewFile.id)) {
@@ -1450,18 +2206,19 @@
       }
     } catch (error) {
       console.error("[NEXORA] Library load failed:", error);
-      byId("library-status").textContent = "LIBRARY CONNECTION ERROR";
-      byId("recent-row").innerHTML = `<p class="empty-state">Could not load your library. ${esc(error.message)}</p>`;
-      if (state.page !== "discover") {
-        byId("collection-status").textContent = "Could not connect to the media library.";
+      showLibraryOffline(error.message);
+      if (state.page !== "discover" && !state.libraryLoaded) {
         byId("empty-library").hidden = false;
-        byId("empty-title").textContent = "Server connection problem";
-        byId("empty-message").textContent = "Check the NEXORA server terminal and the /api/library route.";
       }
     } finally {
       state.libraryBusy = false;
+      setLibraryBusy(false);
     }
   }
+
+  byId("library-retry").addEventListener("click", () => {
+    void loadLibrary(!state.libraryLoaded);
+  });
 
   /* ---------- Player ---------- */
 
@@ -1479,8 +2236,177 @@
     byId("center-play").setAttribute("aria-label", playing ? "Pause" : "Play");
     byId("mini-play").dataset.state = playing ? "playing" : "paused";
     byId("mini-play").setAttribute("aria-label", playing ? "Pause" : "Play");
+    miniPlayer.classList.toggle("is-playing", playing);
     byId("audio-visual").classList.toggle("is-playing", playing && state.currentFile?.type === "audio");
+    byId("mini-art").classList.toggle("is-playing", playing && state.currentFile?.type === "audio");
     showPlayerControls();
+  }
+
+  function setMiniAnchor(anchor) {
+    const valid = ["top-left", "top-right", "bottom-left", "bottom-right"];
+    const chosen = valid.includes(anchor) ? anchor : "bottom-right";
+    miniPlayer.style.left = chosen.endsWith("left") ? "18px" : "auto";
+    miniPlayer.style.right = chosen.endsWith("right") ? "18px" : "auto";
+    miniPlayer.style.top = chosen.startsWith("top") ? "18px" : "auto";
+    miniPlayer.style.bottom = chosen.startsWith("bottom") ? "18px" : "auto";
+    state.miniPosition = chosen;
+    safeWrite("nexora-mini-position", chosen);
+  }
+
+  function syncMiniMode(file = state.currentFile) {
+    const isAudio = file?.type === "audio";
+    miniPlayer.classList.toggle("is-audio-mode", Boolean(isAudio));
+    miniPlayer.classList.toggle("is-video-mode", !isAudio);
+    byId("mini-video-frame").setAttribute("aria-hidden", String(Boolean(isAudio)));
+    byId("mini-art").classList.toggle("is-playing", !mediaNow()?.paused && Boolean(isAudio));
+  }
+
+  function moveVideoToMini() {
+    if (video.parentElement !== miniVideoSlot) miniVideoSlot.appendChild(video);
+    video.style.display = state.currentFile?.type === "audio" ? "none" : "block";
+  }
+
+  function moveVideoToStage() {
+    const stage = byId("stage");
+    if (video.parentElement !== stage) stage.insertBefore(video, stage.firstChild);
+    video.style.display = state.currentFile?.type === "audio" ? "none" : "block";
+  }
+
+  function updateMiniProgress(media = mediaNow()) {
+    if (!media) return;
+    const duration = Number.isFinite(media.duration) && media.duration > 0 ? media.duration : 0;
+    const pct = duration ? Math.max(0, Math.min(100, media.currentTime / duration * 100)) : 0;
+    if (!state.miniSeeking) byId("mini-seek").value = String(pct * 10);
+    miniPlayer.style.setProperty("--mini-played", `${pct}%`);
+    byId("mini-time").textContent = duration
+      ? `${formatTime(media.currentTime)} / ${formatTime(duration)}`
+      : formatTime(media.currentTime);
+  }
+
+  function showMiniControls(autoHide = true) {
+    if (miniPlayer.hidden) return;
+    miniPlayer.classList.add("controls-visible");
+    clearTimeout(state.miniHideTimer);
+    if (autoHide && window.matchMedia("(hover: none), (pointer: coarse)").matches) {
+      state.miniHideTimer = setTimeout(() => {
+        miniPlayer.classList.remove("controls-visible");
+      }, 2600);
+    }
+  }
+
+  function getMiniMotionDuration() {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 620;
+  }
+
+  function cancelMiniAnimations() {
+    state.miniAnimations.forEach(animation => {
+      try { animation.cancel(); } catch {}
+    });
+    state.miniAnimations = [];
+  }
+
+  function minimizePlayer() {
+    if (!state.currentFile || !mediaNow() || state.wasMinimized) return;
+    cancelMiniAnimations();
+    saveProgress();
+    if (state.page === "discover") renderContinueWatching();
+    closeSettings();
+    byId("player-info-card").hidden = true;
+    const stage = byId("stage");
+    const originRect = (state.currentFile.type === "audio" ? playerWindow : stage).getBoundingClientRect();
+    const activeFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+    if (activeFullscreen && (activeFullscreen === stage || stage.contains(activeFullscreen))) {
+      const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+      try { Promise.resolve(exitFullscreen?.call(document)).catch(() => {}); } catch {}
+      try { screen.orientation?.unlock?.(); } catch {}
+    }
+
+    syncMiniMode(state.currentFile);
+    if (state.currentFile.type === "video") moveVideoToMini();
+    if (typeof state.miniPosition === "string") setMiniAnchor(state.miniPosition);
+    miniPlayer.hidden = false;
+    state.wasMinimized = true;
+    document.body.style.overflow = "";
+    updateMiniProgress();
+    miniPlayer.classList.remove("controls-visible");
+    if (window.matchMedia("(hover: none), (pointer: coarse)").matches) showMiniControls();
+
+    const token = ++state.miniTransitionToken;
+    playerLayer.classList.add("is-minimizing");
+    requestAnimationFrame(() => {
+      if (token !== state.miniTransitionToken) return;
+      const targetRect = miniPlayer.getBoundingClientRect();
+      const sx = Math.max(.08, originRect.width / Math.max(1, targetRect.width));
+      const sy = Math.max(.08, originRect.height / Math.max(1, targetRect.height));
+      const dx = originRect.left - targetRect.left;
+      const dy = originRect.top - targetRect.top;
+      const duration = getMiniMotionDuration();
+      const miniAnimation = miniPlayer.animate([
+        { transformOrigin: "top left", transform: `translate3d(${dx}px,${dy}px,0) scale(${sx},${sy})`, borderRadius: "11px", opacity: .96 },
+        { transformOrigin: "top left", transform: "translate3d(0,0,0) scale(1,1)", borderRadius: "12px", opacity: 1 }
+      ], { duration, easing: "cubic-bezier(.18,.82,.2,1)", fill: "both" });
+      const layerAnimation = playerWindow.animate([
+        { opacity: 1, transform: "scale(1)" },
+        { opacity: 0, transform: "scale(.975)" }
+      ], { duration: Math.min(duration, 430), easing: "cubic-bezier(.4,0,.8,.4)", fill: "both" });
+      state.miniAnimations = [miniAnimation, layerAnimation];
+      Promise.all([miniAnimation.finished.catch(() => {}), layerAnimation.finished.catch(() => {})]).then(() => {
+        if (token !== state.miniTransitionToken) return;
+        playerLayer.hidden = true;
+        playerLayer.classList.remove("is-minimizing");
+        playerWindow.style.opacity = "";
+        playerWindow.style.transform = "";
+        miniAnimation.cancel();
+        layerAnimation.cancel();
+        state.miniAnimations = [];
+        if (state.page === "discover" && !document.hidden && state.heroFeaturedId) {
+          const featured = state.fileById.get(state.heroFeaturedId);
+          if (featured) startHeroPreview(featured);
+        }
+      });
+    });
+  }
+
+  function expandMiniPlayer() {
+    if (miniPlayer.hidden || !state.wasMinimized) return;
+    const miniRect = miniPlayer.getBoundingClientRect();
+    cancelMiniAnimations();
+    const token = ++state.miniTransitionToken;
+    clearTimeout(state.miniHideTimer);
+    playerLayer.hidden = false;
+    playerLayer.classList.remove("is-minimizing");
+    document.body.style.overflow = "hidden";
+    moveVideoToStage();
+    miniPlayer.hidden = true;
+    state.wasMinimized = false;
+    closeSettings();
+
+    requestAnimationFrame(() => {
+      if (token !== state.miniTransitionToken) return;
+      const targetRect = playerWindow.getBoundingClientRect();
+      const sx = Math.max(.08, miniRect.width / Math.max(1, targetRect.width));
+      const sy = Math.max(.08, miniRect.height / Math.max(1, targetRect.height));
+      const dx = miniRect.left - targetRect.left;
+      const dy = miniRect.top - targetRect.top;
+      const duration = getMiniMotionDuration();
+      const animation = playerWindow.animate([
+        { transformOrigin: "top left", transform: `translate3d(${dx}px,${dy}px,0) scale(${sx},${sy})`, opacity: .95 },
+        { transformOrigin: "top left", transform: "translate3d(0,0,0) scale(1,1)", opacity: 1 }
+      ], { duration, easing: "cubic-bezier(.18,.82,.2,1)", fill: "both" });
+      const overlayAnimation = playerLayer.animate([
+        { opacity: 0 }, { opacity: 1 }
+      ], { duration: Math.min(duration, 390), easing: "ease-out", fill: "both" });
+      state.miniAnimations = [animation, overlayAnimation];
+      Promise.all([animation.finished.catch(() => {}), overlayAnimation.finished.catch(() => {})]).then(() => {
+        if (token !== state.miniTransitionToken) return;
+        playerWindow.style.opacity = "";
+        playerWindow.style.transform = "";
+        animation.cancel();
+        overlayAnimation.cancel();
+        state.miniAnimations = [];
+        showPlayerControls();
+      });
+    });
   }
 
   function updatePlayerDetails(file) {
@@ -1490,25 +2416,100 @@
     byId("info-name").textContent = titleOf(file);
     byId("info-path").textContent = file.path || "";
     byId("info-format").textContent = `${String(file.extension || "").toUpperCase()} · ${formatSize(file.size)}`;
-    byId("download-link").href = `/api/download?path=${encodeURIComponent(file.path)}`;
+    const downloadLink = byId("download-link");
+    const downloadParams = new URLSearchParams({ path: file.path });
+    downloadLink.href = `/api/download?${downloadParams.toString()}`;
+    // The server also sends Content-Disposition: attachment. This same-origin
+    // hint helps browsers which otherwise try to open supported media inline.
+    downloadLink.download = file.fileName || `${titleOf(file)}.${file.extension || "bin"}`;
+    downloadLink.setAttribute("aria-label", `Download ${titleOf(file)}`);
+    downloadLink.title = `Download ${titleOf(file)}`;
+    downloadLink.dataset.downloadReady = "true";
     byId("player-file-label").textContent = `${categoryOf(file).toUpperCase()} · ${String(file.extension || "").toUpperCase()}`;
     const thumb = file.type === "video" ? thumbnailURL(file, 240) : "";
     byId("mini-art").style.backgroundImage = thumb ? `url("${thumb}")` : "none";
     byId("mini-art").textContent = thumb ? "" : "♫";
+    syncMiniMode(file);
+    updateMiniProgress();
+  }
+
+  byId("download-link").addEventListener("click", event => {
+    const link = byId("download-link");
+    if (!state.currentFile || link.dataset.downloadReady !== "true" || !link.href.includes("/api/download?")) {
+      event.preventDefault();
+      toast("The download is not ready yet. Reopen the title and try again.");
+    }
+  });
+
+  let queueObserver = null;
+  const QUEUE_BATCH_SIZE = 36;
+
+  function appendQueueBatch(target = byId("up-next-list")) {
+    const queue = state.queue;
+    const start = Number(target.dataset.renderedCount) || 0;
+    const end = Math.min(queue.length, start + QUEUE_BATCH_SIZE);
+    if (end <= start) return;
+    const sentinel = target.querySelector(".queue-load-sentinel");
+    const template = document.createElement("template");
+    template.innerHTML = queue.slice(start, end).map((file, offset) => {
+      const index = start + offset;
+      const thumb = file.type === "video" ? thumbnailURL(file, 180) : "";
+      const current = file.id === state.currentFile?.id;
+      return `<button type="button" class="queue-item ${current ? "current" : ""}" data-queue-index="${index}"><span class="queue-thumb">${thumb ? `<img src="${esc(thumb)}" alt="" loading="lazy" decoding="async" data-remove-on-error="true">` : ""}</span><span class="queue-copy"><strong>${esc(titleOf(file))}</strong><small>${current ? "NOW PLAYING" : esc(genreOf(file))}</small></span></button>`;
+    }).join("");
+    target.insertBefore(template.content, sentinel || null);
+    target.dataset.renderedCount = String(end);
+    if (end >= queue.length) {
+      sentinel?.remove();
+      queueObserver?.disconnect();
+      queueObserver = null;
+    }
   }
 
   function renderQueue() {
     const target = byId("up-next-list");
+    queueObserver?.disconnect();
+    queueObserver = null;
+    target.dataset.renderedCount = "0";
     byId("queue-count").textContent = `${state.queue.length} ITEMS`;
-    target.innerHTML = state.queue.map((file, index) => {
-      const thumb = file.type === "video" ? thumbnailURL(file, 180) : "";
-      const current = file.id === state.currentFile?.id;
-      return `<button type="button" class="queue-item ${current ? "current" : ""}" data-queue-index="${index}"><span class="queue-thumb">${thumb ? `<img src="${esc(thumb)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</span><span class="queue-copy"><strong>${esc(titleOf(file))}</strong><small>${current ? "NOW PLAYING" : esc(genreOf(file))}</small></span></button>`;
-    }).join("") || '<p class="queue-empty">Open a title from your collection to build a play queue.</p>';
+    if (!state.queue.length) {
+      target.innerHTML = '<p class="queue-empty">Open a title from your collection to build a play queue.</p>';
+      return;
+    }
+    const initialEnd = Math.min(state.queue.length, QUEUE_BATCH_SIZE);
+    target.innerHTML = state.queue.length > QUEUE_BATCH_SIZE
+      ? '<div class="queue-load-sentinel" aria-live="polite">More in your queue</div>'
+      : "";
+    if (typeof IntersectionObserver === "function" && state.queue.length > QUEUE_BATCH_SIZE) {
+      queueObserver = new IntersectionObserver(entries => {
+        if (entries.some(entry => entry.isIntersecting)) appendQueueBatch(target);
+      }, { root: target, rootMargin: "320px 0px", threshold: 0 });
+      queueObserver.observe(target.querySelector(".queue-load-sentinel"));
+      appendQueueBatch(target);
+    } else {
+      appendQueueBatch(target);
+      if (state.queue.length > initialEnd) {
+        const append = () => {
+          if (!target.isConnected || !target.querySelector(".queue-load-sentinel")) return;
+          appendQueueBatch(target);
+          if (target.querySelector(".queue-load-sentinel")) requestAnimationFrame(append);
+        };
+        // The placeholder was created above for both observer and fallback
+        // paths. Reuse it; adding a second one leaves a stray row at the end.
+        requestAnimationFrame(append);
+      }
+    }
   }
 
   function openPlayer(file, queue = state.files) {
     if (!file?.path) return;
+    ++state.miniTransitionToken;
+    cancelMiniAnimations();
+    moveVideoToStage();
+    miniPlayer.hidden = true;
+    playerLayer.classList.remove("is-minimizing");
+    playerWindow.style.opacity = "";
+    playerWindow.style.transform = "";
     stopCardPreview();
     stopActivePreview();
     state.queue = queue.length ? [...queue] : [file];
@@ -1531,6 +2532,7 @@
     byId("mini-player").hidden = true;
     playerLayer.hidden = false;
     playerWindow.classList.remove("is-minimized", "queue-open", "queue-collapsed");
+    animatePlayerOpen();
     byId("queue-toggle").setAttribute("aria-expanded", "false");
     state.wasMinimized = false;
     document.body.style.overflow = "hidden";
@@ -1598,6 +2600,8 @@
   }
 
   async function discoverSubtitles(file) {
+    if (!file || state.subtitleDiscoveryFor === file.id) return;
+    state.subtitleDiscoveryFor = file.id;
     clearSubtitleElements();
     if (!file || file.type !== "video") {
       renderSubtitleOptions();
@@ -1659,9 +2663,15 @@
 
   function loadPlayerFile(file, resume = false) {
     state.currentFile = file;
+    state.subtitleDiscoveryFor = null;
     const isAudio = file.type === "audio";
     const media = isAudio ? audio : video;
     state.activeMedia = media;
+    if (state.wasMinimized) {
+      if (isAudio) moveVideoToStage();
+      else moveVideoToMini();
+      syncMiniMode(file);
+    }
     clearSubtitleElements();
     video.pause();
     audio.pause();
@@ -1680,33 +2690,58 @@
     byId("seek").value = "0";
     $(".timeline-range").style.setProperty("--played", "0%");
     const resumeAt = resume ? Number(state.progress[file.id]?.time || 0) : 0;
+    const loadToken = ++state.playerLoadToken;
+    if (state.pendingMetadataMedia && state.pendingMetadataHandler) {
+      state.pendingMetadataMedia.removeEventListener("loadedmetadata", state.pendingMetadataHandler);
+    }
     const metadata = () => {
+      if (state.pendingMetadataHandler === metadata) {
+        state.pendingMetadataMedia = null;
+        state.pendingMetadataHandler = null;
+      }
+      // A late metadata event from a previous source must never seek or update
+      // the UI for the title which replaced it.
+      if (loadToken !== state.playerLoadToken || state.currentFile?.id !== file.id || media !== mediaNow()) return;
       byId("player-loader").hidden = true;
       if (resumeAt > 8 && Number.isFinite(media.duration) && resumeAt < media.duration - 12) media.currentTime = resumeAt;
       byId("time-total").textContent = formatTime(media.duration);
-      media.removeEventListener("loadedmetadata", metadata);
+      updateMiniProgress(media);
+      if (!isAudio) void discoverSubtitles(file);
     };
-    media.addEventListener("loadedmetadata", metadata);
+    state.pendingMetadataMedia = media;
+    state.pendingMetadataHandler = metadata;
+    media.addEventListener("loadedmetadata", metadata, { once: true });
     media.src = `/api/stream?path=${encodeURIComponent(file.path)}`;
     media.load();
-    if (!isAudio) discoverSubtitles(file);
+    if (!isAudio) {
+      state.subtitleDiscoveryFor = null;
+      byId("subtitle-status").textContent = "Waiting for video metadata…";
+    }
     renderQueue();
     showPlayerControls();
-    media.play().then(() => setPlaying(true)).catch(error => {
+    media.play().then(() => {
+      if (loadToken === state.playerLoadToken && media === mediaNow()) setPlaying(true);
+    }).catch(error => {
+      if (loadToken !== state.playerLoadToken || media !== mediaNow()) return;
       byId("player-loader").hidden = true;
       setPlaying(false);
       if (error?.name !== "NotAllowedError") toast("Playback could not start. Check the file format and server connection.");
     });
   }
 
-  function saveProgress() {
+  function saveProgress(forcePersist = true) {
     const media = mediaNow();
     if (!media || !state.currentFile || !Number.isFinite(media.currentTime) || media.currentTime <= 0) return;
+    const now = Date.now();
     state.progress[state.currentFile.id] = {
       time: media.currentTime,
-      duration: Number.isFinite(media.duration) ? media.duration : 0
+      duration: Number.isFinite(media.duration) ? media.duration : 0,
+      updatedAt: now
     };
-    safeWrite("nexora-progress", state.progress);
+    if (forcePersist || now - state.lastProgressPersistAt >= 12000) {
+      safeWrite("nexora-progress", state.progress);
+      state.lastProgressPersistAt = now;
+    }
   }
 
   function closePlayer() {
@@ -1714,17 +2749,40 @@
     if (media) {
       saveProgress();
       media.pause();
+      media.removeAttribute("src");
+      media.load();
     }
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+    moveVideoToStage();
+    ++state.miniTransitionToken;
+    cancelMiniAnimations();
+    clearTimeout(state.miniHideTimer);
+    state.playerLoadToken += 1;
+    if (state.pendingMetadataMedia && state.pendingMetadataHandler) {
+      state.pendingMetadataMedia.removeEventListener("loadedmetadata", state.pendingMetadataHandler);
+    }
+    state.pendingMetadataMedia = null;
+    state.pendingMetadataHandler = null;
     playerLayer.hidden = true;
+    playerLayer.classList.remove("is-minimizing");
+    playerWindow.style.opacity = "";
+    playerWindow.style.transform = "";
     playerWindow.classList.remove("is-minimized", "queue-open", "queue-collapsed");
     byId("queue-toggle").setAttribute("aria-expanded", "false");
     state.wasMinimized = false;
     closeSettings();
     clearSubtitleElements();
     byId("mini-player").hidden = true;
+    byId("share-dialog").hidden = true;
     document.body.style.overflow = "";
     state.currentFile = null;
     state.activeMedia = null;
+    renderContinueWatching();
     clearTimeout(state.controlsTimer);
     if (state.page === "discover" && state.heroFeaturedId) {
       const featured = state.fileById.get(state.heroFeaturedId);
@@ -1784,10 +2842,16 @@
       if (media === mediaNow()) setPlaying(false);
     });
     media.addEventListener("waiting", () => {
-      if (media === mediaNow()) byId("player-loader").hidden = false;
+      if (media === mediaNow()) {
+        byId("player-loader").hidden = false;
+        miniPlayer.classList.add("is-buffering");
+      }
     });
     media.addEventListener("canplay", () => {
-      if (media === mediaNow()) byId("player-loader").hidden = true;
+      if (media === mediaNow()) {
+        byId("player-loader").hidden = true;
+        miniPlayer.classList.remove("is-buffering");
+      }
     });
     media.addEventListener("timeupdate", () => {
       if (media !== mediaNow()) return;
@@ -1798,8 +2862,8 @@
         byId("time-now").textContent = formatTime(media.currentTime);
         byId("time-total").textContent = formatTime(media.duration);
       }
-      clearTimeout(state.saveTimer);
-      state.saveTimer = setTimeout(saveProgress, 1200);
+      updateMiniProgress(media);
+      saveProgress(false);
     });
     media.addEventListener("ended", () => {
       if (media !== mediaNow()) return;
@@ -1814,10 +2878,14 @@
       }
     });
     media.addEventListener("error", () => {
-      if (media !== mediaNow() || !state.currentFile || playerLayer.hidden) return;
+      if (media !== mediaNow() || !state.currentFile || !isPlayerPresented()) return;
       byId("player-loader").hidden = true;
-      byId("player-error").hidden = false;
-      byId("player-error").textContent = "This browser could not decode this file. MP4 (H.264/AAC) and WebM are widely supported; MKV and some audio codecs may require conversion.";
+      const message = "This browser could not decode this file. MP4 (H.264/AAC) and WebM are widely supported; MKV and some audio codecs may require conversion.";
+      if (state.wasMinimized) toast(message);
+      else {
+        byId("player-error").hidden = false;
+        byId("player-error").textContent = message;
+      }
     });
   }
 
@@ -1825,8 +2893,14 @@
   bindMedia(audio);
 
   /* Player control wiring */
-  byId("player-back").addEventListener("click", closePlayer);
+  byId("player-back").addEventListener("click", minimizePlayer);
   byId("center-play").addEventListener("click", togglePlayback);
+  video.addEventListener("click", () => {
+    if (!playerLayer.hidden && !state.wasMinimized) {
+      togglePlayback();
+      showPlayerControls();
+    }
+  });
   byId("play").addEventListener("click", togglePlayback);
   byId("previous-track").addEventListener("click", previousTrack);
   byId("next-track").addEventListener("click", () => nextTrack(true));
@@ -1890,9 +2964,25 @@
     loadPlayerFile(state.queue[index], false);
   });
   byId("fullscreen").addEventListener("click", async () => {
+    const stage = byId("stage");
+    const activeFullscreen = document.fullscreenElement || document.webkitFullscreenElement || null;
     try {
-      if (!document.fullscreenElement) await byId("stage").requestFullscreen?.();
-      else await document.exitFullscreen?.();
+      if (!activeFullscreen) {
+        const requestFullscreen = stage.requestFullscreen || stage.webkitRequestFullscreen;
+        if (typeof requestFullscreen !== "function") throw new Error("Fullscreen API unavailable");
+        // Ask mobile browsers to hide browser chrome where the platform allows it.
+        await requestFullscreen.call(stage, { navigationUI: "hide" });
+        // Landscape makes a phone's video canvas use the widest available viewport.
+        // Browsers that disallow orientation locking simply continue normally.
+        if (window.matchMedia?.("(pointer: coarse) and (max-width: 900px)").matches &&
+            typeof screen.orientation?.lock === "function") {
+          try { await screen.orientation.lock("landscape"); } catch {}
+        }
+      } else {
+        const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+        if (typeof exitFullscreen === "function") await exitFullscreen.call(document);
+        try { screen.orientation?.unlock?.(); } catch {}
+      }
     } catch {
       toast("Fullscreen is unavailable in this browser.");
     }
@@ -1936,6 +3026,8 @@
   });
   byId("captions-button").addEventListener("click", () => {
     if (state.currentFile?.type === "audio") return;
+    if (state.currentFile && video.readyState < HTMLMediaElement.HAVE_METADATA) byId("subtitle-status").textContent = "Waiting for video metadata…";
+    else if (state.currentFile && state.subtitleDiscoveryFor !== state.currentFile.id) void discoverSubtitles(state.currentFile);
     openSettings();
     byId("subtitle-options").scrollIntoView({ block: "nearest" });
   });
@@ -1951,41 +3043,241 @@
     document.documentElement.style.setProperty("--subtitle-size", storedSubtitleSize);
   }
   byId("queue-toggle").addEventListener("click", () => {
-    const mobile = window.matchMedia("(max-width: 780px)").matches;
+    const mobile = window.matchMedia("(max-width: 900px)").matches;
     const className = mobile ? "queue-open" : "queue-collapsed";
     playerWindow.classList.toggle(className);
     const expanded = playerWindow.classList.contains(className);
     byId("queue-toggle").setAttribute("aria-expanded", String(expanded));
     showPlayerControls();
   });
-  byId("player-minimize").addEventListener("click", () => {
-    saveProgress();
-    closeSettings();
-    playerLayer.hidden = true;
-    byId("mini-player").hidden = false;
-    document.body.style.overflow = "";
-    state.wasMinimized = true;
+  byId("mini-expand").addEventListener("click", expandMiniPlayer);
+  byId("mini-play").addEventListener("click", () => {
+    togglePlayback();
+    showMiniControls();
   });
-  byId("mini-expand").addEventListener("click", () => {
-    playerLayer.hidden = false;
-    byId("mini-player").hidden = true;
-    document.body.style.overflow = "hidden";
-    state.wasMinimized = false;
-    showPlayerControls();
-  });
-  byId("mini-play").addEventListener("click", togglePlayback);
   byId("mini-close").addEventListener("click", closePlayer);
-  byId("share-video").addEventListener("click", async () => {
-    if (!state.currentFile) return;
-    const url = new URL(location.href);
-    url.searchParams.set("play", state.currentFile.id);
-    try {
-      await navigator.clipboard.writeText(url.toString());
-      toast("Playback link copied. It works for devices that can reach your server.");
-    } catch {
-      toast("Clipboard access is blocked by this browser.");
+  byId("mini-seek").addEventListener("pointerdown", () => { state.miniSeeking = true; });
+  byId("mini-seek").addEventListener("pointerup", () => {
+    state.miniSeeking = false;
+    updateMiniProgress();
+  });
+  byId("mini-seek").addEventListener("pointercancel", () => {
+    state.miniSeeking = false;
+    updateMiniProgress();
+  });
+  byId("mini-seek").addEventListener("change", () => {
+    state.miniSeeking = false;
+    updateMiniProgress();
+  });
+  byId("mini-seek").addEventListener("input", event => {
+    const media = mediaNow();
+    if (media && Number.isFinite(media.duration) && media.duration > 0) {
+      media.currentTime = Number(event.target.value) / 1000 * media.duration;
+      showMiniControls();
     }
   });
+  miniPlayer.addEventListener("pointermove", event => {
+    if (event.pointerType !== "mouse" || window.matchMedia("(hover: none), (pointer: coarse)").matches) showMiniControls();
+  }, { passive: true });
+  miniPlayer.addEventListener("pointerdown", event => {
+    if (event.pointerType !== "mouse") showMiniControls();
+  }, { passive: true });
+  miniPlayer.addEventListener("focusin", () => showMiniControls(false));
+  miniPlayer.addEventListener("focusout", event => {
+    if (!miniPlayer.contains(event.relatedTarget) && window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+      miniPlayer.classList.remove("controls-visible");
+    }
+  });
+
+  // Only the dedicated title/grip area starts a drag; playback controls remain independent.
+  const miniDragHandle = byId("mini-drag-handle");
+  miniDragHandle.addEventListener("pointerdown", event => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const rect = miniPlayer.getBoundingClientRect();
+    state.miniPointer = {
+      id: event.pointerId,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      left: rect.left,
+      top: rect.top
+    };
+    miniPlayer.style.left = `${rect.left}px`;
+    miniPlayer.style.top = `${rect.top}px`;
+    miniPlayer.style.right = "auto";
+    miniPlayer.style.bottom = "auto";
+    miniPlayer.classList.add("is-dragging");
+    miniDragHandle.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+  miniDragHandle.addEventListener("pointermove", event => {
+    const drag = state.miniPointer;
+    if (!drag || drag.id !== event.pointerId) return;
+    drag.left = Math.max(8, Math.min(window.innerWidth - miniPlayer.offsetWidth - 8, event.clientX - drag.offsetX));
+    drag.top = Math.max(8, Math.min(window.innerHeight - miniPlayer.offsetHeight - 8, event.clientY - drag.offsetY));
+    if (!state.miniPointerFrame) {
+      state.miniPointerFrame = requestAnimationFrame(() => {
+        state.miniPointerFrame = 0;
+        const current = state.miniPointer;
+        if (!current) return;
+        miniPlayer.style.left = `${current.left}px`;
+        miniPlayer.style.top = `${current.top}px`;
+      });
+    }
+  });
+  const finishMiniDrag = event => {
+    const drag = state.miniPointer;
+    if (!drag || drag.id !== event.pointerId) return;
+    state.miniPointer = null;
+    if (state.miniPointerFrame) cancelAnimationFrame(state.miniPointerFrame);
+    state.miniPointerFrame = 0;
+    const rect = miniPlayer.getBoundingClientRect();
+    const horizontal = rect.left + rect.width / 2 < window.innerWidth / 2 ? "left" : "right";
+    const vertical = rect.top + rect.height / 2 < window.innerHeight / 2 ? "top" : "bottom";
+    const anchor = `${vertical}-${horizontal}`;
+    const finalLeft = horizontal === "left" ? 18 : Math.max(8, window.innerWidth - rect.width - 18);
+    const finalTop = vertical === "top" ? 18 : Math.max(8, window.innerHeight - rect.height - 18);
+    const dx = rect.left - finalLeft;
+    const dy = rect.top - finalTop;
+    setMiniAnchor(anchor);
+    miniPlayer.classList.remove("is-dragging");
+    if (Math.abs(dx) + Math.abs(dy) > 1) {
+      miniPlayer.animate([
+        { transform: `translate3d(${dx}px,${dy}px,0)` },
+        { transform: "translate3d(0,0,0)" }
+      ], { duration: 260, easing: "cubic-bezier(.2,.72,.24,1)" });
+    }
+  };
+  miniDragHandle.addEventListener("pointerup", finishMiniDrag);
+  miniDragHandle.addEventListener("pointercancel", finishMiniDrag);
+  window.addEventListener("resize", () => {
+    if (!miniPlayer.hidden && !state.miniPointer && state.miniPosition) setMiniAnchor(state.miniPosition);
+  });
+  if (typeof state.miniPosition === "string") setMiniAnchor(state.miniPosition);
+  async function copyTextFallback(value) {
+    // Clipboard API is preferred, but requires a secure context and can be
+    // denied by browser permissions. Keep a selection-based fallback for
+    // browsers which still support execCommand.
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch {
+      // Continue to the legacy selection fallback.
+    }
+
+    const field = document.createElement("textarea");
+    field.value = value;
+    field.setAttribute("readonly", "");
+    field.setAttribute("aria-hidden", "true");
+    field.style.position = "fixed";
+    field.style.left = "-9999px";
+    field.style.top = "0";
+    document.body.appendChild(field);
+    try {
+      field.focus();
+      field.select();
+      field.setSelectionRange(0, field.value.length);
+      return Boolean(document.execCommand?.("copy"));
+    } catch {
+      return false;
+    } finally {
+      field.remove();
+    }
+  }
+
+  function buildPlaybackShareData(file = state.currentFile) {
+    const url = new URL(location.href);
+    url.hash = "";
+    url.search = "";
+    url.searchParams.set("play", file.id);
+    const shareUrl = url.toString();
+    return {
+      url: shareUrl,
+      data: {
+        title: `${titleOf(file)} · NEXORA`,
+        text: `Watch ${titleOf(file)} in NEXORA`,
+        url: shareUrl
+      }
+    };
+  }
+
+  function openShareDialog(shareUrl) {
+    const dialog = byId("share-dialog");
+    byId("share-url").value = shareUrl;
+    byId("share-copy-status").textContent = "Select Copy link, or select the URL to copy it manually.";
+    byId("share-native").hidden = typeof navigator.share !== "function";
+    dialog.hidden = false;
+    requestAnimationFrame(() => {
+      byId("share-url").focus();
+      byId("share-url").select();
+    });
+  }
+
+  async function copyShareLink() {
+    const field = byId("share-url");
+    const copied = await copyTextFallback(field.value);
+    if (copied) {
+      byId("share-copy-status").textContent = "Link copied. Friends can open it while your NEXORA server is online.";
+      toast("Playback link copied.");
+      return true;
+    }
+    field.focus();
+    field.select();
+    byId("share-copy-status").textContent = "Automatic copying is unavailable. The link is selected; copy it manually.";
+    return false;
+  }
+
+  byId("share-video").addEventListener("click", async () => {
+    const file = state.currentFile;
+    if (!file) {
+      toast("Open a title before sharing it.");
+      return;
+    }
+    const share = buildPlaybackShareData(file);
+
+    // Use the native Android/iOS share sheet directly from this user gesture.
+    if (typeof navigator.share === "function") {
+      try {
+        if (!navigator.canShare || navigator.canShare(share.data)) {
+          await navigator.share(share.data);
+          toast("NEXORA link shared.");
+          return;
+        }
+      } catch (error) {
+        // Closing the native sheet is an intentional cancellation, not a failure.
+        if (error?.name === "AbortError") return;
+      }
+    }
+
+    // Desktop and unsupported mobile browsers try clipboard first. If denied,
+    // a visible fallback dialog keeps the URL available without window.prompt.
+    if (await copyTextFallback(share.url)) {
+      toast("Playback link copied. Friends can open it while your NEXORA server is online.");
+      return;
+    }
+    openShareDialog(share.url);
+  });
+
+  byId("share-copy").addEventListener("click", copyShareLink);
+  byId("share-native").addEventListener("click", async () => {
+    const url = byId("share-url").value;
+    const file = state.currentFile;
+    if (!file || typeof navigator.share !== "function") return;
+    try {
+      await navigator.share({ title: `${titleOf(file)} · NEXORA`, text: `Watch ${titleOf(file)} in NEXORA`, url });
+      byId("share-copy-status").textContent = "NEXORA link shared.";
+      toast("NEXORA link shared.");
+    } catch (error) {
+      if (error?.name !== "AbortError") byId("share-copy-status").textContent = "The share sheet could not open. Copy the selected link instead.";
+    }
+  });
+  const closeShareDialog = () => { byId("share-dialog").hidden = true; };
+  byId("share-close").addEventListener("click", closeShareDialog);
+  byId("share-dialog").addEventListener("click", event => {
+    if (event.target === byId("share-dialog")) closeShareDialog();
+  });
+
 
   function showPlayerControls() {
     const stage = byId("stage");
@@ -2016,27 +3308,38 @@
       }
     }, 900);
   });
-  document.addEventListener("fullscreenchange", () => {
-    if (!playerLayer.hidden && document.fullscreenElement === playerStage) {
-      showPlayerControls();
+  const handleFullscreenChange = () => {
+    const activeFullscreen = document.fullscreenElement || document.webkitFullscreenElement || null;
+    if (!activeFullscreen) {
+      try { screen.orientation?.unlock?.(); } catch {}
     }
-  });
+    if (!playerLayer.hidden && activeFullscreen === playerStage) showPlayerControls();
+  };
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
+  document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
 
   /* ---------- Keyboard shortcuts ---------- */
   document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !byId("share-dialog").hidden) {
+      byId("share-dialog").hidden = true;
+      return;
+    }
     if (playerLayer.hidden) {
       if (event.key === "/" && !["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) {
         event.preventDefault();
         openSearch();
       }
-      if (event.key === "Escape" && !byId("search-layer").hidden) byId("search-layer").hidden = true;
+      if (event.key === "Escape" && !byId("search-layer").hidden) {
+        event.preventDefault();
+        closeSearch();
+      }
       return;
     }
     if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
     const media = mediaNow();
     if (event.key === "Escape") {
       if (state.settingsOpen) closeSettings();
-      else closePlayer();
+      else minimizePlayer();
     }
     if (event.code === "Space") {
       event.preventDefault();
@@ -2060,8 +3363,8 @@
     stopLibraryPolling();
     if (document.hidden) return;
     state.libraryPollTimer = window.setInterval(() => {
-      if (!document.hidden && !state.libraryBusy) void loadLibrary(false);
-    }, 30000);
+      if (!document.hidden && !state.libraryBusy && playerLayer.hidden) void loadLibrary(false);
+    }, 60000);
   }
 
   document.addEventListener("visibilitychange", () => {
@@ -2072,6 +3375,13 @@
       state.heroPreviewWaiting = false;
       state.heroErasePending = false;
       state.heroResumeAfterPreview = null;
+      state.heroTitleReadyToErase = false;
+      state.heroTitleFinished = false;
+      state.heroPreviewFinished = false;
+      state.heroAdvanceTriggered = false;
+      state.heroExitRequested = false;
+      state.heroEraseNow = null;
+      clearHeroTransitionBridge();
       stopCardPreview();
       stopActivePreview();
       saveProgress();
