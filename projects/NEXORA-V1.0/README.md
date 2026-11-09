@@ -1,32 +1,79 @@
-# NEXORA V7.8.3 — Unified Featured Sequence & Quote Removal
+# NEXORA V1.1.0 — God Mode Infrastructure & Scalability Hardening
 
-This release makes one focused refinement to V7.8.2: the quote panel and quote rotation are removed entirely, and the visible Discover hero plus off-screen collection-page ambience now share one featured-video sequence and one cursor.
+This release is based on the supplied NEXORA V1.0.9 project. It preserves the V1.0.9 frontend experience and makes targeted internal backend changes for concurrency control, large-library handling, stream cleanup and diagnostics efficiency.
 
-## Install safely
+## Install
 
-1. Stop the currently running NEXORA server.
-2. Extract this ZIP into a **new folder**. Keep V7.8.2 and V7.7.3 as backups until you have verified the new release locally.
-3. Copy your existing `Entertainment` folder into the new project folder. Do not move or delete your original media.
-4. Run `npm install`, then `npm run check`, then `npm start`.
-5. Open `http://localhost:3000` and hard-refresh with `Ctrl + Shift + R`.
+Use a maintained Node.js release (22 or newer; prefer a current supported LTS release with its latest security patches).
 
-## One shared featured-video sequence
+1. Extract the ZIP into a new folder.
+2. Place your existing `Entertainment` media folder beside `server.js`.
+3. From the extracted NEXORA folder, run:
 
-- Discover hero previews and the invisible ambience preview on collection pages use the same A–Z ordered video list and the same `featuredSequenceLastId` cursor. There is no second ambience cursor or independent background sequence.
-- When leaving Discover, the currently featured video is handed off to the invisible ambience preview without advancing the cursor. When returning to Discover, the active ambience video is handed back to the visible hero, again without advancing the cursor.
-- When moving between Movies, Anime, Music, Docs, Web-Series, Library, and Saved/Favourites, the active ambience preview continues uninterrupted. It does not restart or choose a separate title per section.
-- When a preview ends or fails, the shared cursor advances once to the next video; the same next video is used regardless of which section is currently open.
-- Each preview contributes a representative video frame to the existing global ambience layers. The frame is downsampled for extraction and crossfades across the entire interface.
-- The visible hero remains live-video-only with its title and original actions. It does not request or display a poster/thumbnail.
-- The existing preview element is reused, so the ambience system does not create a second video decoder. Background-only previews use the existing 720p-capable preview endpoint for reduced workload.
-- If the browser cannot expose a decoded frame to canvas, playback and sequence timing continue and the last successful ambience remains in place.
+```bash
+npm ci
+npm run check
+npm start
+```
 
-## Quotes removed
+The package version is `1.1.0`. The application listens on `0.0.0.0:3000` by default; configure `HOST` and `PORT` for your deployment topology.
 
-- The quote panel has been removed from Discover and every other section.
-- Quote arrays, quote rotation timers, quote markup and quote-only CSS have been removed.
-- The featured video's title remains in the hero; it is not a quote and continues to update with the active preview.
+This release has **no built-in sign-in**, account system, credentials or HTTP authentication challenge. It also preserves normal browser text selection and does not add a custom text-highlight feature.
 
-## Preserved behaviour
+## V1.1.0 engineering changes
 
-The Midnight Cinema design, hero buttons, card thumbnails and hover previews, row navigation arrows, player, library/folder structure, favourites, watch progress, subtitles, streaming/download routes, server-side media processing and responsive layouts are retained. The server processing routes are unchanged apart from release metadata.
+### Bounded FFprobe execution
+
+- Added an independent FFprobe semaphore, defaulting to 2 active probes and a maximum of 64 queued waiters.
+- Primary video-stream discovery and embedded-subtitle probing now use that gate.
+- Scene-duration metadata probing uses the probe gate instead of occupying an FFmpeg encoder slot.
+- Queue saturation fails promptly with a retryable busy error instead of spawning unlimited metadata processes.
+
+### Media stream cleanup and HTTP HEAD
+
+- Full-file and byte-range stream requests now destroy their file streams when the client connection closes.
+- HEAD requests return the same relevant media headers without opening and reading the media file.
+- Download HEAD requests also avoid creating a read stream.
+
+### Large-library handling
+
+- Recursive scanner merges now iterate nested results rather than spreading arbitrarily large arrays into `push`, avoiding argument-count limits on deep/large folders.
+- The library JSON payload is serialized once when a cached library snapshot is refreshed and reused for visitors during the existing 15-second snapshot window. The API response shape and `no-store` policy remain unchanged.
+
+### Search efficiency
+
+- The per-file search index prepared during library loading is now reused by filtering instead of rebuilding metadata text on every query update. Nested folder terms remain searchable.
+
+### Diagnostics
+
+- FFmpeg/FFprobe checks are process-gated.
+- The duplicate FFmpeg encoder scan was removed.
+- Tool capability checks are single-flight and cached for 30 seconds; live active-process counters are still returned on each diagnostics response.
+
+### Baseline and compatibility
+
+- The visual design, markup and player behaviours are retained. `script.js` has one internal search-path optimisation that reuses the prebuilt search index.
+- `index.html` changes only the cache-busting release query strings.
+- `style.css` changes only the release comment.
+- Existing media routes, player features, no-sign-in requirement and native browser text selection are preserved.
+- No new runtime dependency was added. The direct dependency remains Express `^5.3.0`.
+- The Node engine requirement is now `>=22`; Node 18 and 20 are end-of-life and should not be used for new deployments.
+
+## Verification in this build environment
+
+- `node --check server.js`: passed.
+- `node --check script.js`: passed.
+- `npm run check`: 60/60 Node tests passed (see `TEST-OUTPUT-FINAL.txt`).
+- Chromium headless browser audit: latest completed run 6/6 checks; an earlier synthetic scrolling run showed one 244 ms long task and a subsequent retry timed out. This variability is disclosed in the audit report.
+- Chromium CSSOM parse: passed; 1,313 total CSS rules were parsed.
+- The source diff confirms no markup, styling-rule, animation or player-flow changes; one internal search-index reuse optimisation was added.
+- V1.0.8 and V1.0.9 baseline file hashes verify against their manifests.
+- Fresh ZIP extraction: archive integrity clean, 68/68 release-manifest entries verified, and 60/60 Node tests passed from the extracted copy.
+
+## Explicit verification limitations
+
+This environment could not complete `npm ci`: requests to `registry.npmjs.org` failed with DNS `EAI_AGAIN`. Express was therefore unavailable, and the live Express server, real HTTP integration, FFmpeg/FFprobe endpoint integration, and exact-lockfile `npm audit` were not run. The archive also does not contain the user's `Entertainment` library.
+
+The Chromium tests exercise the included synthetic navigation, fullscreen and 32-card scroll fixtures. They are not a physical Android test, a 120 Hz measurement or a full real-library UI performance trace. No real multi-user load test, Cloudflare Tunnel test, long-duration endurance test or production benchmark was performed.
+
+See `GOD-MODE-AUDIT-REPORT.md` for findings, implemented changes, remaining risks and required next verification steps. The scroll-test repeatability caveat is in `BROWSER-AUDIT/SCROLL-REPEATABILITY-NOTE.md`.
