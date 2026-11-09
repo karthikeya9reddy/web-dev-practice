@@ -1,0 +1,222 @@
+{
+  "release": "1.1.0",
+  "engine": "Chromium headless on Linux",
+  "checks": [
+    {
+      "name": "Mobile wrapped navigation indicator tracks the selected row and column",
+      "passed": true,
+      "details": {
+        "nav": {
+          "x": 12,
+          "y": 73,
+          "w": 170,
+          "h": 165
+        },
+        "active": {
+          "x": 18,
+          "y": 118,
+          "w": 66.265625,
+          "h": 36,
+          "offsetX": 5,
+          "offsetY": 44
+        },
+        "indicator": {
+          "w": 66,
+          "h": 36,
+          "transform": "matrix(1, 0, 0, 1, 5, 44)",
+          "opacity": 1
+        }
+      }
+    },
+    {
+      "name": "Mobile landscape fullscreen contains full 16:9 video",
+      "passed": true,
+      "details": {
+        "viewport": {
+          "w": 915,
+          "h": 412
+        },
+        "stage": {
+          "x": 0,
+          "y": 0,
+          "w": 915,
+          "h": 412
+        },
+        "video": {
+          "box": {
+            "w": 915,
+            "h": 412
+          },
+          "intrinsic": {
+            "w": 320,
+            "h": 180
+          },
+          "fit": "contain",
+          "position": "50% 50%"
+        },
+        "fullscreen": true,
+        "expectedContainedContent": {
+          "w": 732.44,
+          "h": 412.0
+        },
+        "expectedLetterbox": {
+          "horizontal": 182.56,
+          "vertical": 0.0
+        }
+      }
+    },
+    {
+      "name": "Mobile landscape fullscreen contains full 4:3 video",
+      "passed": true,
+      "details": {
+        "viewport": {
+          "w": 915,
+          "h": 412
+        },
+        "stage": {
+          "x": 0,
+          "y": 0,
+          "w": 915,
+          "h": 412
+        },
+        "video": {
+          "box": {
+            "w": 915,
+            "h": 412
+          },
+          "intrinsic": {
+            "w": 240,
+            "h": 180
+          },
+          "fit": "contain",
+          "position": "50% 50%"
+        },
+        "fullscreen": true,
+        "expectedContainedContent": {
+          "w": 549.33,
+          "h": 412.0
+        },
+        "expectedLetterbox": {
+          "horizontal": 365.67,
+          "vertical": 0.0
+        }
+      }
+    },
+    {
+      "name": "Mobile landscape fullscreen contains full 21:9 video",
+      "passed": true,
+      "details": {
+        "viewport": {
+          "w": 915,
+          "h": 412
+        },
+        "stage": {
+          "x": 0,
+          "y": 0,
+          "w": 915,
+          "h": 412
+        },
+        "video": {
+          "box": {
+            "w": 915,
+            "h": 412
+          },
+          "intrinsic": {
+            "w": 420,
+            "h": 180
+          },
+          "fit": "contain",
+          "position": "50% 50%"
+        },
+        "fullscreen": true,
+        "expectedContainedContent": {
+          "w": 915.0,
+          "h": 392.14
+        },
+        "expectedLetterbox": {
+          "horizontal": 0.0,
+          "vertical": 19.86
+        }
+      }
+    },
+    {
+      "name": "Mobile portrait fullscreen fills dynamic viewport and contains full video",
+      "passed": true,
+      "details": {
+        "viewport": {
+          "w": 412,
+          "h": 915
+        },
+        "stage": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 915
+        },
+        "intrinsic": {
+          "w": 320,
+          "h": 180
+        },
+        "fit": "contain",
+        "fullscreen": true
+      }
+    },
+    {
+      "name": "Repeated 32-card incremental grid scrolling stress test",
+      "passed": true,
+      "details": {
+        "trials": [
+          {
+            "cards": 32,
+            "frames": 116,
+            "medianFrameMs": 16.699999999999818,
+            "p95FrameMs": 16.800000000000182,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "scrollTop": 1419,
+            "scrollHeight": 2263
+          },
+          {
+            "cards": 32,
+            "frames": 118,
+            "medianFrameMs": 16.699999999999818,
+            "p95FrameMs": 16.799999999999727,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "scrollTop": 1419,
+            "scrollHeight": 2263
+          },
+          {
+            "cards": 32,
+            "frames": 121,
+            "medianFrameMs": 16.699999999999818,
+            "p95FrameMs": 16.799999999999727,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "scrollTop": 1419,
+            "scrollHeight": 2263
+          },
+          {
+            "cards": 32,
+            "frames": 121,
+            "medianFrameMs": 16.699999999999818,
+            "p95FrameMs": 16.800000000000182,
+            "longTasks": 0,
+            "longTaskMaxMs": 0,
+            "scrollTop": 1419,
+            "scrollHeight": 2263
+          }
+        ],
+        "cleanTrials": 4,
+        "totalTrials": 4,
+        "p95FrameMsMedian": 16.800000000000182,
+        "maxLongTaskMs": 0
+      }
+    }
+  ],
+  "limitations": [
+    "Chromium tests ran headless on Linux. The measured 16.7ms cadence reflects this host browser, not the user phone refresh rate or GPU.",
+    "Fullscreen viewport geometry and actual video aspect-ratio rendering were tested in Chromium. Android OS status/navigation bars and vendor-specific immersive-mode behaviour still require a physical Android device test.",
+    "The stress test models the first 32-card render batch. It does not reproduce every real media file decode, image network timing, or the user device library size."
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "baseline": "V1.0.9",
+  "files": {
+    "server.js": "5ab7607069811e6129d0d2f0aeb5738ee955b28449b098f1b5cd93d05625b81e",
+    "script.js": "57db8d1f7e76ae9ead8928031389df2133c65f058808973993ebd95879962edf",
+    "index.html": "218f73279f7dc386a5c63eafe1c3eb42ae444d9c228316dbe03288c27b803310",
+    "style.css": "a6fdaa6ef4280ed15bcdc0135e6453ebfc46f28c27ffebbe8e0979e5e035bc36",
+    "package.json": "2a9db547610ec545a11e56a288a07d07e1dc73dad76115e1cf699e5d469a5450",
+    "package-lock.json": "b0a27c636988e4bee2673917e43cef9e84b3b86d2e4bf186c7b4dd74bbae2ef4"
+  }
+}

@@ -1,0 +1,8 @@
+NEXORA V1.1.0 Chromium headless audit: 6/6 checks passed in the latest completed run.
+1. PASS — Mobile wrapped navigation indicator tracks the selected row and column
+2. PASS — Mobile landscape fullscreen contains full 16:9 video
+3. PASS — Mobile landscape fullscreen contains full 4:3 video
+4. PASS — Mobile landscape fullscreen contains full 21:9 video
+5. PASS — Mobile portrait fullscreen fills dynamic viewport and contains full video
+6. PASS — Repeated 32-card incremental grid scrolling stress test
+Environment: Chromium headless on Linux. This is not a physical mobile device or a 120 Hz measurement.
