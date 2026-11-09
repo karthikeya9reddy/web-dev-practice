@@ -1,0 +1,25 @@
+{
+  "baseline": "V1.0.9",
+  "release": "V1.1.0",
+  "checks": {
+    "script_has_only_search_index_reuse_change": true,
+    "search_index_preserves_filename_path_category_genre_subgenre_and_nested_folder_terms": true,
+    "html_changes_only_cache_busting_versions": true,
+    "stylesheet_rules_unchanged_release_comment_only": true,
+    "player_markup_and_player_interaction_logic_not_reworked": true,
+    "backend_changes_are_internal_hardening_only": true,
+    "api_library_response_schema_preserved": true,
+    "no_sign_in_or_custom_text_highlight_added": true,
+    "direct_runtime_dependencies_unchanged": true,
+    "full_visual_and_physical_device_equivalence_tested": false
+  },
+  "active_sha256": {
+    "server.js": "125a9406845d2aa06cac50db35a1386e63a22b33efaad83bbe641cfeb41f0d94",
+    "script.js": "2d46c030b8ea7100546bbd339231e78118951d2c7b36aacf029b7530e40892b2",
+    "index.html": "906f6b96c95df07d8378907e125c8326696b6ea7a4142a6f189849a36cb84ffa",
+    "style.css": "2367ea6020cabb82146268615828f51e53f3d2ff051399b52e336df410ef2ccb",
+    "package.json": "712d88ea559682d0a16abc054faa85990be8cf1c964c7ab593419c9d1cdc7d31",
+    "package-lock.json": "45ad91a5e736c8b2d0aa56fdaec434020facd8a79c438c138869fd05f5c1d37c"
+  },
+  "note": "The V1.1.0 internal search filtering path now uses the already-built search index. No UI markup, visual CSS rules, animations, player behaviour or intended feature behaviour was changed. Full physical-device visual equivalence remains untested."
+}

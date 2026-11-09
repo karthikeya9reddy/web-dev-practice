@@ -3,14 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#080b11">
-  <meta name="description" content="NEXORA — your personal cinema, anime and music library.">
-  <title>NEXORA</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;650;700;750;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=7.8.3">
-  <script defer src="/script.js?v=7.8.3"></script>
+  <meta name="theme-color" content="#090a0d">
+  <meta name="description" content="NEXORA — your personal cinema, designed for effortless discovery and playback.">
+  <title>NEXORA — Liquid Glass Cinema</title>
+  <link rel="stylesheet" href="/style.css?v=1.1.0">
+  <script defer src="/script.js?v=1.1.0"></script>
 </head>
 <body>
   <svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
@@ -49,13 +46,13 @@
     <symbol id="i-volume-medium" viewBox="0 0 24 24"><path d="M4 10v4h4l5 4V6l-5 4z"/><path d="M17 9.5a4 4 0 0 1 0 5"/></symbol>
   </svg>
 
-  <div class="ambient-layer ambient-a" id="ambient-a"></div>
-  <div class="ambient-layer ambient-b" id="ambient-b"></div>
+  <div class="ambient-layer ambient-a" id="ambient-a" aria-hidden="true"><canvas class="ambient-frame" id="ambient-frame-a" width="480" height="270"></canvas></div>
+  <div class="ambient-layer ambient-b" id="ambient-b" aria-hidden="true"><canvas class="ambient-frame" id="ambient-frame-b" width="480" height="270"></canvas></div>
 
   <header class="topbar">
     <a class="brand" href="#discover" data-page="discover" aria-label="NEXORA home">NEXORA</a>
     <nav class="nav" id="main-nav" aria-label="Main navigation">
-      <button class="nav-link active" type="button" data-page="discover">Discover</button>
+      <button class="nav-link active" type="button" data-page="discover" aria-current="page">Discover</button>
       <button class="nav-link" type="button" data-page="movies">Movies</button>
       <button class="nav-link" type="button" data-page="anime">Anime</button>
       <button class="nav-link" type="button" data-page="music">Music</button>
@@ -70,13 +67,18 @@
     </div>
   </header>
 
-  <main>
+  <main id="main-content">
+    <h1 class="sr-only" id="page-heading">Discover</h1>
+    <div class="library-connection-banner" id="library-connection-error" role="alert" aria-live="assertive" hidden>
+      <span id="library-connection-message">NEXORA could not connect to your local media server.</span>
+      <button class="text-action library-retry" id="library-retry" type="button">RETRY</button>
+    </div>
     <section class="hero" id="hero" aria-label="Discover">
       <video id="preview-player" class="preview-video" muted playsinline preload="none" aria-hidden="true" tabindex="-1"></video>
       <div class="hero-shade"></div>
       <div class="hero-content">
         <p class="eyebrow" id="hero-kicker"><i></i> SELECTED FROM YOUR LIBRARY</p>
-        <h1 id="hero-title" aria-label="Featured video title"></h1>
+        <h2 class="hero-title" id="hero-title" aria-label="Featured video title"></h2>
         <p class="hero-description" id="hero-desc">A preview from your personal collection.</p>
         <div class="hero-actions" id="hero-ctas" aria-label="Featured title actions"></div>
       </div>
@@ -89,8 +91,8 @@
     </section>
 
     <section class="home-section" id="recent-section">
-      <div class="section-heading"><div><p class="eyebrow">JUST ARRIVED</p><h2>Recently added<span>.</span></h2></div><span class="section-note" id="library-status">CONNECTING TO YOUR LIBRARY</span></div>
-      <div class="media-row" id="recent-row"><p class="empty-state">Looking through your collection…</p></div>
+      <div class="section-heading"><div><p class="eyebrow">JUST ARRIVED</p><h2>Recently added<span>.</span></h2></div><span class="section-note" id="library-status" role="status" aria-live="polite" aria-atomic="true">CONNECTING TO YOUR LIBRARY</span></div>
+      <div class="media-row" id="recent-row" aria-busy="true"><p class="empty-state" role="status">Looking through your collection…</p></div>
     </section>
 
     <section class="home-section pick-section" id="picks-section">
@@ -105,7 +107,7 @@
 
     <section class="collection-page" id="collection" hidden aria-live="polite">
       <div class="collection-topline">
-        <div class="collection-title-block"><p class="eyebrow" id="collection-kicker">YOUR COLLECTION</p><h1 id="collection-title">Movies<span>.</span></h1><p class="collection-description" id="collection-desc">Explore your collection.</p></div>
+        <div class="collection-title-block"><p class="eyebrow" id="collection-kicker">YOUR COLLECTION</p><h2 id="collection-title">Movies<span>.</span></h2><p class="collection-description" id="collection-desc">Explore your collection.</p></div>
         <div class="collection-count" id="result-count">0 TITLES</div>
       </div>
       <div class="browse-toolbar">
@@ -137,12 +139,11 @@
   <div class="player-overlay" id="player-layer" hidden>
     <section class="player-window" id="player-window" role="dialog" aria-modal="true" aria-label="NEXORA player">
       <header class="player-header">
-        <button class="player-back icon-hit" id="player-back" type="button" aria-label="Close player" title="Back to NEXORA"><svg class="icon"><use href="#i-back"/></svg></button>
+        <button class="player-back icon-hit" id="player-back" type="button" aria-label="Back to NEXORA" title="Back to NEXORA"><svg class="icon"><use href="#i-back"/></svg></button>
         <div class="player-heading"><span class="now-playing-label">NOW PLAYING</span><strong id="player-title">Media title</strong></div>
         <div class="player-header-actions">
-          <button class="player-icon-button" id="queue-toggle" type="button" title="Play queue" aria-label="Play queue"><svg class="icon"><use href="#i-queue"/></svg></button>
+          <button class="player-icon-button" id="queue-toggle" type="button" title="Play queue" aria-label="Show Up Next queue"><svg class="icon"><use href="#i-queue"/></svg></button>
           <button class="player-icon-button" id="player-info-toggle" type="button" title="Media information" aria-label="Media information"><svg class="icon"><use href="#i-info"/></svg></button>
-          <button class="player-icon-button" id="player-minimize" type="button" title="Mini player" aria-label="Mini player"><svg class="icon"><use href="#i-minimize"/></svg></button>
           <a class="player-icon-button" id="download-link" href="#" title="Download" aria-label="Download"><svg class="icon"><use href="#i-download"/></svg></a>
           <button class="player-icon-button" id="share-video" type="button" title="Share" aria-label="Share"><svg class="icon"><use href="#i-share"/></svg></button>
         </div>
@@ -184,30 +185,60 @@
           <div class="settings-scrim" id="settings-scrim" hidden></div>
           <section class="player-settings" id="settings-panel" role="dialog" aria-label="Playback settings" hidden>
             <div class="settings-header"><div><span>PLAYBACK</span><strong>Settings</strong></div><button class="settings-close" id="settings-close" type="button" aria-label="Close settings"><svg class="icon"><use href="#i-x"/></svg></button></div>
-            <div class="settings-row subtitle-settings-row"><div class="settings-label"><svg class="icon"><use href="#i-captions"/></svg><span>Subtitles</span></div><div class="settings-value" id="subtitle-status">Checking tracks…</div></div>
+            <div class="settings-row subtitle-settings-row"><div class="settings-label"><svg class="icon"><use href="#i-captions"/></svg><span>Subtitles</span></div><div class="settings-value" id="subtitle-status" role="status" aria-live="polite">Not checked</div></div>
             <div class="subtitle-options" id="subtitle-options"><button class="subtitle-option active" type="button" data-subtitle-id="off">Off <svg class="icon"><use href="#i-check"/></svg></button></div>
             <div class="settings-divider"></div>
             <label class="settings-row"><span class="settings-label">Playback speed</span><select id="speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>Normal</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option></select></label>
             <label class="settings-row"><span class="settings-label">Subtitle size</span><select id="subtitle-size"><option value="90%">Small</option><option value="100%" selected>Default</option><option value="115%">Large</option><option value="130%">Extra large</option></select></label>
-            <div class="settings-row"><span class="settings-label">Autoplay next</span><button class="setting-toggle active" id="autoplay" type="button" aria-pressed="true"><span></span></button></div>
-            <div class="settings-row"><span class="settings-label">Shuffle</span><button class="setting-toggle" id="shuffle" type="button" aria-pressed="false"><span></span></button></div>
-            <div class="settings-row"><span class="settings-label">Repeat current</span><button class="setting-toggle" id="repeat" type="button" aria-pressed="false"><span></span></button></div>
+            <div class="settings-row"><span class="settings-label">Autoplay next</span><button class="setting-toggle active" id="autoplay" type="button" aria-label="Autoplay next" aria-pressed="true"><span></span></button></div>
+            <div class="settings-row"><span class="settings-label">Shuffle</span><button class="setting-toggle" id="shuffle" type="button" aria-label="Shuffle playback" aria-pressed="false"><span></span></button></div>
+            <div class="settings-row"><span class="settings-label">Repeat current</span><button class="setting-toggle" id="repeat" type="button" aria-label="Repeat current title" aria-pressed="false"><span></span></button></div>
           </section>
         </div>
 
-        <aside class="up-next-panel" id="up-next-panel"><div class="up-next-heading"><span>PLAY QUEUE</span><small id="queue-count">0 ITEMS</small></div><div id="up-next-list" class="up-next-list"></div></aside>
+        <aside class="up-next-panel" id="up-next-panel"><div class="up-next-heading"><span>UP NEXT</span><small id="queue-count">0 ITEMS</small></div><div id="up-next-list" class="up-next-list"></div></aside>
       </div>
       <footer class="player-footer"><span id="player-file-label">NEXORA PLAYER</span><span class="player-shortcuts">SPACE PLAY/PAUSE <i></i> ← → SEEK <i></i> F FULLSCREEN</span></footer>
     </section>
   </div>
 
-  <div class="mini-player" id="mini-player" hidden>
-    <div class="mini-art" id="mini-art">♫</div>
-    <div class="mini-copy"><strong id="mini-title">Now playing</strong><small id="mini-subtitle">NEXORA</small></div>
-    <button id="mini-play" type="button" aria-label="Play or pause" data-state="playing"><svg class="icon icon-play"><use href="#i-play"/></svg><svg class="icon icon-pause"><use href="#i-pause"/></svg></button>
-    <button id="mini-expand" type="button" aria-label="Expand player"><svg class="icon"><use href="#i-maximize"/></svg></button>
-    <button id="mini-close" type="button" aria-label="Close player"><svg class="icon"><use href="#i-x"/></svg></button>
+  <div class="share-dialog" id="share-dialog" hidden>
+    <section class="share-dialog-card" role="dialog" aria-modal="true" aria-labelledby="share-dialog-title">
+      <button class="share-dialog-close" id="share-close" type="button" aria-label="Close sharing dialog"><svg class="icon"><use href="#i-x"/></svg></button>
+      <p class="eyebrow">SHARE FROM YOUR LIBRARY</p>
+      <h2 id="share-dialog-title">Share this title<span>.</span></h2>
+      <p class="share-dialog-description">Anyone with this link can open this title while your NEXORA server is online.</p>
+      <label class="share-link-label" for="share-url">PLAYBACK LINK</label>
+      <input id="share-url" class="share-url-input" type="text" readonly spellcheck="false" aria-label="Playback link">
+      <div class="share-dialog-actions">
+        <button class="hero-action-primary" id="share-copy" type="button"><svg class="icon"><use href="#i-share"/></svg> Copy link</button>
+        <button class="hero-action-secondary" id="share-native" type="button" hidden><svg class="icon"><use href="#i-arrow-up-right"/></svg> More sharing options</button>
+      </div>
+      <p class="share-copy-status" id="share-copy-status" role="status" aria-live="polite"></p>
+    </section>
   </div>
+
+  <section class="mini-player is-video-mode" id="mini-player" aria-label="Floating NEXORA player" hidden>
+    <div class="mini-video-frame" id="mini-video-frame" aria-hidden="true">
+      <div class="mini-video-slot" id="mini-video-slot"></div>
+      <div class="mini-video-vignette"></div>
+    </div>
+    <div class="mini-art" id="mini-art" aria-hidden="true">♫</div>
+    <div class="mini-copy mini-drag-handle" id="mini-drag-handle" aria-label="Drag mini-player to reposition">
+      <span class="mini-grip" aria-hidden="true"><i></i><i></i><i></i></span>
+      <strong id="mini-title">Now playing</strong>
+      <small id="mini-subtitle">NEXORA</small>
+    </div>
+    <div class="mini-actions">
+      <button id="mini-expand" type="button" aria-label="Expand player" title="Return to full player"><svg class="icon"><use href="#i-maximize"/></svg></button>
+      <button id="mini-close" type="button" aria-label="Stop playback and close player" title="Stop and close"><svg class="icon"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="mini-controlbar">
+      <button id="mini-play" type="button" aria-label="Play or pause" data-state="playing"><svg class="icon icon-play"><use href="#i-play"/></svg><svg class="icon icon-pause"><use href="#i-pause"/></svg></button>
+      <input id="mini-seek" type="range" min="0" max="1000" value="0" aria-label="Mini-player playback position">
+      <span id="mini-time">0:00</span>
+    </div>
+  </section>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </body>
