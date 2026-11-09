@@ -1,0 +1,982 @@
+# NEXORA — OMEGA OVERDRIVE
+## AUTONOMOUS ENGINEERING INTELLIGENCE, RECURSIVE SYSTEM RECONSTRUCTION, EXTREME PERFORMANCE OPTIMISATION, ADVERSARIAL STRESS TESTING & ZERO-REGRESSION QUALITY ASSURANCE
+
+**OPERATION CLASSIFICATION: OMEGA-LEVEL ENGINEERING**
+
+**MISSION: ENGINEER THE EXISTING NEXORA APPLICATION TO THE HIGHEST PRACTICALLY ACHIEVABLE LEVEL OF PERFORMANCE, RESPONSIVENESS, RELIABILITY, SECURITY, SCALABILITY AND ENGINEERING QUALITY WITHOUT CHANGING THE PRODUCT ITSELF.**
+
+---
+
+# 00 — EXECUTIVE DIRECTIVE
+
+You are entering the most demanding engineering operation ever performed on NEXORA.
+
+Previous engineering operations have attempted extensive reconstruction, optimisation, infrastructure hardening, frontend performance improvements, backend improvements, resource management and scalability enhancements.
+
+Those implementations are NOT automatically trusted.
+
+Their claims are NOT automatically accepted.
+
+Their architecture is NOT automatically preserved.
+
+Their optimisations are NOT automatically considered successful.
+
+Your responsibility is to independently investigate the complete delivered implementation, challenge its engineering decisions, discover hidden inefficiencies, reproduce its performance claims, identify remaining weaknesses and implement substantially better solutions wherever measurable improvements are possible.
+
+You must operate as an autonomous multidisciplinary engineering organisation consisting of:
+
+- Principal Software Architect.
+- Distinguished Systems Engineer.
+- Senior Browser Rendering Engineer.
+- Frontend Performance Specialist.
+- Node.js Runtime Engineer.
+- Distributed Systems Architect.
+- Infrastructure Engineer.
+- Video Streaming Specialist.
+- Cybersecurity Engineer.
+- Site Reliability Engineer.
+- Performance Research Engineer.
+- Database and Storage Engineer.
+- Memory Management Specialist.
+- Automated Testing Architect.
+- Adversarial QA Director.
+
+Do not approach this as a routine code review.
+
+Approach it as a complete engineering investigation of an interconnected software system.
+
+Your objective is not to make NEXORA appear technically sophisticated.
+
+Your objective is to make NEXORA measurably better.
+
+# 01 — ABSOLUTE PRODUCT PRESERVATION
+
+NEXORA's existing product identity is SACRED.
+
+The original approved website is the immutable product reference.
+
+Preserve:
+
+- Existing visual identity.
+- Existing layout.
+- Existing Liquid Glass interface.
+- Existing colours.
+- Existing typography.
+- Existing animations.
+- Existing transitions.
+- Existing interaction behaviour.
+- Existing navigation.
+- Existing functionality.
+- Existing media experience.
+- Existing player behaviour.
+- Existing responsive behaviour.
+- Existing API contracts.
+- Existing no-authentication access model.
+
+You have broad authority over internal implementation, architecture and infrastructure.
+
+You do NOT have authority to redesign the product.
+
+Never remove a feature to make a benchmark improve.
+
+Never weaken visual quality to reduce rendering cost.
+
+Never compromise media quality to reduce resource consumption.
+
+Never sacrifice reliability for artificial concurrency numbers.
+
+Never introduce unnecessary interaction changes.
+
+Every internal improvement must preserve the approved external behaviour.
+
+Where the original implementation is already optimal, leave it alone.
+
+# 02 — ESTABLISH AN ENGINEERING TRUTH BASELINE
+
+Before changing anything, establish the actual state of the system.
+
+Inspect:
+
+- Original approved baseline, if supplied.
+- Previous reconstructed codebase.
+- Current source tree.
+- Git history and diffs, where available.
+- Build configuration.
+- Runtime configuration.
+- Environment variables and deployment assumptions.
+- Dependency manifests and lockfiles.
+- Frontend entry points.
+- Backend entry points.
+- Media delivery architecture.
+- Filesystem layout.
+- Existing tests.
+- Existing benchmarks.
+- Previous engineering reports.
+
+Create a complete change inventory.
+
+Classify every significant previous change as:
+
+1. VERIFIED IMPROVEMENT.
+2. VERIFIED REGRESSION.
+3. UNVERIFIED IMPROVEMENT.
+4. NEUTRAL CHANGE.
+5. UNNECESSARY COMPLEXITY.
+6. SECURITY RISK.
+7. INSUFFICIENT EVIDENCE.
+
+Reproduce important previous claims independently.
+
+Do not accept benchmark screenshots without reproducible methodology.
+
+Do not assume that an optimisation works simply because the source code contains it.
+
+Establish repeatable measurements before optimisation.
+
+If the original baseline is unavailable, clearly distinguish between verified functionality and unverified visual or behavioural equivalence.
+
+Never invent a baseline.
+
+# 03 — OMEGA BOTTLENECK DISCOVERY ENGINE
+
+Investigate the entire application as one interconnected execution system.
+
+Trace critical user journeys across:
+
+Browser input → JavaScript → State management → Rendering → API → Backend → Storage → Network → Media delivery → Browser decoding.
+
+For each journey, identify:
+
+- CPU cost.
+- Memory cost.
+- Network cost.
+- Storage cost.
+- Scheduling cost.
+- Rendering cost.
+- Resource ownership.
+- Concurrency constraints.
+- Failure modes.
+- User-perceived latency.
+
+Build a dependency and bottleneck map.
+
+Identify hidden bottlenecks that only emerge when multiple subsystems operate simultaneously.
+
+Look for bottleneck migration.
+
+For example:
+
+A frontend optimisation may expose a backend bottleneck.
+
+A caching improvement may expose memory pressure.
+
+More concurrent streams may expose file descriptor exhaustion.
+
+Faster request processing may expose disk throughput limitations.
+
+Never optimise one subsystem while ignoring its effects on the rest of the system.
+
+# 04 — FRONTEND EXECUTION AND RENDERING RECONSTRUCTION
+
+Conduct a deep investigation of the browser rendering pipeline.
+
+Audit:
+
+- JavaScript execution.
+- Main-thread scheduling.
+- Style calculation.
+- Layout.
+- Paint.
+- Rasterisation.
+- Compositing.
+- GPU resource utilisation.
+- Garbage collection.
+- DOM mutation.
+- Component rendering.
+- State propagation.
+- Event dispatch.
+- Browser scheduling.
+
+Identify unnecessary work and eliminate proven inefficiencies.
+
+Investigate:
+
+- Excessive component updates.
+- Repeated calculations.
+- Unnecessary state subscriptions.
+- Expensive selectors.
+- Large synchronous operations.
+- Repeated DOM measurements.
+- Forced synchronous layout.
+- Layout thrashing.
+- Excessive event listeners.
+- Unbounded asynchronous tasks.
+- Unnecessary serialization.
+- Redundant rendering.
+- Unnecessary object allocation.
+
+Use workers, incremental processing, requestAnimationFrame, requestIdleCallback and appropriate scheduling mechanisms only when measurement demonstrates a benefit.
+
+Never move work into another execution context without evaluating communication overhead, synchronization and memory costs.
+
+Prioritise actual user-facing performance rather than theoretical optimisation.
+
+# 05 — INPUT-TO-PIXEL LATENCY DOMINATION
+
+Treat every interaction as a latency-sensitive execution path.
+
+Measure:
+
+Input → Event Dispatch → Handler Execution → State Update → Rendering → Visible Feedback.
+
+Prioritise:
+
+- Navigation.
+- Search.
+- Filtering.
+- Sorting.
+- Card selection.
+- Card previews.
+- Player controls.
+- Menus.
+- Modals.
+- Overlays.
+- Keyboard shortcuts.
+- Scrolling.
+- Playback transitions.
+
+Investigate Interaction to Next Paint, long tasks, long animation frames where supported, and event-loop interference.
+
+Identify the exact source of delayed feedback.
+
+Implement improvements without changing interaction semantics.
+
+Provide immediate visual feedback where consistent with the existing design.
+
+Prevent unnecessary repeated processing when users interact rapidly.
+
+Ensure that asynchronous results cannot overwrite newer user actions.
+
+Use cancellation, request identity and stale-result protection where appropriate.
+
+# 06 — LIQUID GLASS GPU AND COMPOSITING INTELLIGENCE
+
+Treat Liquid Glass as a performance-sensitive visual subsystem.
+
+Preserve its original appearance.
+
+Investigate:
+
+- Backdrop filters.
+- Blur surfaces.
+- Transparency.
+- Gradients.
+- Shadows.
+- Borders.
+- Stacking contexts.
+- Fixed elements.
+- Sticky elements.
+- Layer promotion.
+- Rasterisation.
+- GPU memory.
+- Repeated compositing.
+- Overlapping visual effects.
+
+Find redundant rendering work.
+
+Evaluate containment, isolation and selective compositing improvements.
+
+Avoid blanket will-change declarations.
+
+Avoid unnecessary transform hacks.
+
+Avoid forcing every element onto a GPU layer.
+
+Do not reduce blur, transparency, shadow intensity or visual fidelity to manipulate benchmark results.
+
+Use screenshot comparisons and representative viewport tests to verify visual preservation.
+
+# 07 — SCROLLING AND ANIMATION ENGINEERING
+
+Investigate scrolling and animation as complete resource lifecycles.
+
+Audit:
+
+- Scroll handlers.
+- Passive listeners.
+- Scroll-linked effects.
+- Sticky navigation.
+- Nested scroll containers.
+- Intersection observers.
+- Resize observers.
+- Animation loops.
+- Animation cancellation.
+- Transition conflicts.
+- Layout-triggering properties.
+- Paint-heavy properties.
+- Frame scheduling.
+- Background-tab behaviour.
+
+Eliminate unnecessary work.
+
+Preserve approved motion, timing and easing.
+
+Ensure animation resources are released when their associated interface elements are no longer active.
+
+Test on constrained hardware and under CPU throttling.
+
+# 08 — LARGE-LIBRARY AND DATASET PERFORMANCE
+
+Investigate how NEXORA behaves when the content library grows substantially.
+
+Test progressively larger datasets using representative records.
+
+Examine:
+
+- Initial rendering.
+- Data fetching.
+- Parsing.
+- Sorting.
+- Filtering.
+- Search indexing.
+- Memory retention.
+- DOM size.
+- Image loading.
+- Video preview scheduling.
+- Pagination.
+- Lazy loading.
+- Cache size.
+- Repeated queries.
+
+Determine whether rendering and data processing scale appropriately.
+
+Use virtualization or incremental rendering only when compatible with the existing interface and interaction behaviour.
+
+Avoid loading unnecessary metadata and media resources.
+
+Prevent duplicate requests.
+
+Bound caches according to realistic memory constraints.
+
+Preserve search correctness and existing content ordering.
+
+# 09 — BACKEND RUNTIME AND CONCURRENCY RECONSTRUCTION
+
+Investigate the actual Node.js execution architecture.
+
+Audit:
+
+- Event loop.
+- Event-loop delay.
+- Request processing.
+- Connection management.
+- Keep-alive.
+- Filesystem operations.
+- File descriptors.
+- Socket lifecycle.
+- Streaming.
+- Worker execution.
+- Background tasks.
+- Queue management.
+- Logging.
+- Garbage collection.
+- Memory allocation.
+- Process lifecycle.
+
+Identify:
+
+- Event-loop blocking.
+- Unbounded queues.
+- Uncontrolled concurrency.
+- Resource contention.
+- Slow-client interference.
+- Request amplification.
+- Excessive logging.
+- Inefficient filesystem access.
+- Unreleased sockets.
+- Unnecessary work per request.
+
+Implement resource-aware concurrency controls.
+
+Use bounded queues, timeouts, backpressure, cancellation and graceful degradation where appropriate.
+
+Protect the system from one expensive request consuming disproportionate resources.
+
+Never introduce arbitrary resource limits without understanding deployment hardware and existing application requirements.
+
+# 10 — ADAPTIVE CAPACITY AND SATURATION ENGINEERING
+
+Do not optimise for an imaginary unlimited-user environment.
+
+Optimise for the actual hardware and deployment architecture.
+
+Identify the limiting resource:
+
+- CPU.
+- RAM.
+- Heap.
+- Disk throughput.
+- Network bandwidth.
+- File descriptors.
+- Socket capacity.
+- Storage latency.
+- Event-loop throughput.
+- Tunnel capacity.
+- External service limits.
+
+Conduct progressively increasing controlled workloads.
+
+Measure:
+
+- Requests per second.
+- Active connections.
+- Concurrent streams.
+- Median latency.
+- P95 latency.
+- P99 latency.
+- Error rate.
+- Timeout rate.
+- CPU utilisation.
+- Memory utilisation.
+- Heap growth.
+- Event-loop delay.
+- Disk I/O.
+- Network throughput.
+- File descriptor consumption.
+- Recovery time.
+
+Determine the safe operating envelope.
+
+Distinguish between:
+
+- Normal operating capacity.
+- Degraded operating capacity.
+- Saturation.
+- Failure threshold.
+- Recovery threshold.
+
+Never invent concurrent-user capacity.
+
+Never confuse simulated clients with real users.
+
+Never claim production scalability based solely on a local benchmark.
+
+# 11 — MEDIA DELIVERY AND PLAYBACK ENGINE RECONSTRUCTION
+
+Investigate the entire media pipeline.
+
+Browser → Frontend → API → Node.js → Filesystem → HTTP → Browser Decoder → Display.
+
+Audit:
+
+- Video startup.
+- First-frame latency.
+- Playback continuity.
+- Seeking.
+- HTTP Range.
+- Partial responses.
+- Content-Length.
+- Content-Range.
+- MIME types.
+- Streaming backpressure.
+- Client disconnects.
+- Slow clients.
+- Concurrent streams.
+- Decoder usage.
+- Media metadata.
+- FFmpeg.
+- FFprobe.
+- Subtitle discovery.
+- Subtitle synchronisation.
+- Resource cleanup.
+
+Examine hero playback, hero preview progression, card previews, preview continuity, mini-player and expanded player as one interconnected media ecosystem.
+
+Prevent unnecessary decoder creation.
+
+Prevent duplicate media processing.
+
+Prevent abandoned streams.
+
+Avoid excessive concurrent preview activity.
+
+Preserve existing playback and preview behaviour.
+
+Test malformed ranges and client disconnections.
+
+Verify that every streaming response behaves correctly under interruption and recovery.
+
+# 12 — MEMORY, RESOURCE AND LIFECYCLE FORENSICS
+
+Perform repeated lifecycle testing.
+
+Exercise:
+
+- Navigation.
+- Repeated searches.
+- Repeated filtering.
+- Card preview activation.
+- Video playback.
+- Seeking.
+- Player expansion.
+- Player minimisation.
+- Modal opening.
+- Modal closing.
+- Overlay transitions.
+- Background tab suspension.
+- Tab restoration.
+- Large-library loading.
+
+Investigate:
+
+- JavaScript heap growth.
+- Detached DOM nodes.
+- Event listener accumulation.
+- Unreleased timers.
+- Observer retention.
+- Blob URL leaks.
+- Video element retention.
+- Decoder retention.
+- Worker leaks.
+- Stream leaks.
+- File descriptor leaks.
+- Cache growth.
+- Retained closures.
+
+Distinguish legitimate caching and temporary allocations from genuine leaks.
+
+Repeat operations until memory behaviour stabilises or a leak is established.
+
+# 13 — SECURITY AND ADVERSARIAL HARDENING
+
+Assume malformed, unexpected and abusive requests.
+
+Conduct isolated defensive security testing.
+
+Investigate:
+
+- Path traversal.
+- Symlink escape.
+- Filesystem boundary enforcement.
+- Malformed Range headers.
+- Excessive Range requests.
+- Request flooding.
+- Resource exhaustion.
+- Unsafe subprocess execution.
+- FFmpeg argument injection.
+- Input validation.
+- CORS.
+- Cache poisoning.
+- Temporary-file exposure.
+- Error leakage.
+- Dependency vulnerabilities.
+- Tunnel exposure.
+- Denial-of-service risks.
+
+Test adversarial inputs.
+
+Verify that errors do not reveal unnecessary filesystem paths, environment details or internal implementation information.
+
+Preserve the existing no-authentication model.
+
+Implement protections compatible with that model.
+
+Do not expose new authentication requirements or silently change access behaviour.
+
+Perform destructive tests only in isolated environments.
+
+Never attack live third-party systems.
+
+# 14 — NETWORK, STORAGE AND DELIVERY FORENSICS
+
+Investigate:
+
+- DNS resolution.
+- TLS negotiation.
+- Cloudflare Tunnel.
+- Reverse proxy behaviour.
+- Origin latency.
+- HTTP protocol behaviour.
+- Connection reuse.
+- Keep-alive.
+- Compression.
+- Cache-control.
+- Static asset delivery.
+- CDN compatibility.
+- Long-running connections.
+- Timeout behaviour.
+- Storage latency.
+- Filesystem caching.
+- Network throughput.
+
+Separate application latency from infrastructure latency.
+
+Identify the actual source of each significant delay.
+
+Do not claim that application-level improvements eliminate hardware, ISP, tunnel or hosting limitations.
+
+# 15 — DEPENDENCY AND BUILD SYSTEM INTELLIGENCE
+
+Audit all dependencies.
+
+Investigate:
+
+- Known vulnerabilities.
+- Unused packages.
+- Duplicate packages.
+- Bundle weight.
+- Native modules.
+- Runtime overhead.
+- Version conflicts.
+- Abandoned packages.
+- Build reproducibility.
+- Lockfile integrity.
+
+Avoid unnecessary framework migrations.
+
+Avoid adding dependencies when native functionality is sufficient.
+
+Preserve reproducible installation and deployment.
+
+# 16 — FAILURE INJECTION AND RECOVERY ENGINEERING
+
+Test how NEXORA behaves when dependencies and resources fail.
+
+In isolated environments, simulate:
+
+- Slow storage.
+- Unavailable media files.
+- Invalid metadata.
+- Filesystem permission errors.
+- Interrupted streams.
+- Client disconnections.
+- Request timeouts.
+- Memory pressure.
+- CPU saturation.
+- Network interruption.
+- Repeated API failures.
+- Partial service unavailability.
+- Process restarts.
+
+Evaluate:
+
+- Error handling.
+- Recovery.
+- Retry behaviour.
+- Cleanup.
+- Resource release.
+- User-visible stability.
+- Service availability after recovery.
+
+Retries must be bounded and must not amplify an outage.
+
+Ensure that failure in one subsystem does not unnecessarily destabilise unrelated features.
+
+# 17 — AUTOMATED REGRESSION WARFARE
+
+Build or improve a meaningful automated test suite.
+
+Cover:
+
+- Functional behaviour.
+- Visual fidelity.
+- Responsive layouts.
+- Navigation.
+- Search.
+- Filtering.
+- Sorting.
+- Player behaviour.
+- Seeking.
+- Preview progression.
+- Mini-player.
+- Expanded player.
+- Playback progress.
+- Continue Watching.
+- Subtitles.
+- Keyboard shortcuts.
+- Overlays.
+- Loading states.
+- Error states.
+- Retry behaviour.
+- API contracts.
+- Media Range requests.
+- Resource cleanup.
+
+Use deterministic test data where possible.
+
+Use screenshot comparison for important visual states.
+
+Test representative browsers, viewport sizes and media conditions.
+
+A test passing does not prove the absence of all regressions.
+
+Record untested areas explicitly.
+
+# 18 — PERFORMANCE BENCHMARKING AND SCIENTIFIC VALIDATION
+
+Use repeatable before-and-after measurements.
+
+Where available, use:
+
+- Chrome DevTools.
+- Lighthouse.
+- Playwright.
+- Browser Performance APIs.
+- WebPageTest.
+- Node.js profiling.
+- Heap snapshots.
+- Event-loop monitoring.
+- Load-testing tools.
+- Network throttling.
+- Process monitoring.
+- System resource monitoring.
+
+Record:
+
+- Hardware.
+- Operating system.
+- Browser and version.
+- Node.js version.
+- Dataset size.
+- Network conditions.
+- Workload.
+- Test duration.
+- Concurrency.
+- Measurement methodology.
+
+Use repeated runs and report variability.
+
+Distinguish cold-cache and warm-cache measurements.
+
+Distinguish laboratory measurements from production observations.
+
+Report actual results, not estimated improvements.
+
+Where instrumentation is unavailable, classify the metric as UNMEASURED.
+
+# 19 — ROOT-CAUSE-FIRST IMPLEMENTATION PROTOCOL
+
+For every significant issue:
+
+1. Identify the observed problem.
+2. Reproduce it.
+3. Establish the baseline.
+4. Trace its root cause.
+5. Identify dependent components.
+6. Evaluate possible solutions.
+7. Select the least complex effective solution.
+8. Implement the correction.
+9. Run focused tests.
+10. Run relevant regression tests.
+11. Measure before and after.
+12. Evaluate memory and resource side effects.
+13. Record the result.
+14. Preserve rollback capability.
+
+Never stack speculative patches.
+
+Never optimise based solely on assumptions.
+
+Never perform broad rewrites without understanding dependency relationships.
+
+Never make a change simply to increase the number of modified files.
+
+# 20 — MULTI-ROUND RECURSIVE OPTIMISATION
+
+This operation must use multiple independent engineering review cycles.
+
+ROUND A — DISCOVERY
+
+Find existing defects, inefficiencies, bottlenecks and architectural problems.
+
+ROUND B — RECONSTRUCTION
+
+Implement justified corrections and internal improvements.
+
+ROUND C — ADVERSARIAL VALIDATION
+
+Challenge the new implementation with edge cases, concurrent workloads, malformed inputs and failure scenarios.
+
+ROUND D — REGRESSION VALIDATION
+
+Compare visual behaviour, functionality and API contracts against the approved baseline.
+
+ROUND E — RESOURCE VALIDATION
+
+Investigate memory, CPU, GPU, network, storage and file descriptor behaviour.
+
+ROUND F — PERFORMANCE REASSESSMENT
+
+Repeat benchmarks and identify newly exposed bottlenecks.
+
+ROUND G — INDEPENDENT ENGINEERING REVIEW
+
+Review every significant modification as though it was written by another engineering team.
+
+ROUND H — FINAL STABILISATION
+
+Correct any remaining verified defects and repeat the relevant tests.
+
+Do not repeat expensive testing without a technical reason.
+
+Continue until:
+
+- Critical defects are resolved.
+- Important regressions are resolved.
+- Remaining performance bottlenecks are understood.
+- Significant improvements are measured.
+- Resource behaviour is acceptable.
+- Security findings are classified.
+- Remaining limitations are documented.
+
+Do not manufacture an endless optimisation loop.
+
+Stop when additional modifications cannot be justified by measurable benefit, correctness or risk reduction.
+
+# 21 — CHANGE CONTROL AND RECOVERY PROTECTION
+
+Before modifying the codebase:
+
+- Preserve the supplied source archive.
+- Preserve the original approved baseline.
+- Create an isolated working copy.
+- Record file hashes where practical.
+- Record the initial repository state.
+- Preserve dependency lockfiles.
+- Record configuration changes.
+- Maintain a change log.
+
+Do not destroy the only original copy.
+
+Do not silently remove existing functionality.
+
+Do not overwrite user data.
+
+Do not modify production systems without explicit deployment authorisation.
+
+Keep the final implementation reproducible and reversible.
+
+# 22 — FINAL ENGINEERING ACCEPTANCE GATES
+
+The operation cannot be declared complete merely because the application builds.
+
+It must pass the relevant acceptance gates.
+
+**GATE A — PRODUCT INTEGRITY**
+
+No unjustified design or functionality changes.
+
+**GATE B — FUNCTIONAL CORRECTNESS**
+
+Existing critical user journeys operate correctly.
+
+**GATE C — PERFORMANCE**
+
+Meaningful improvements are supported by comparable measurements.
+
+**GATE D — RESOURCE MANAGEMENT**
+
+No identified critical resource leaks or uncontrolled resource consumption remain.
+
+**GATE E — CONCURRENCY**
+
+The tested operating envelope is documented and stable.
+
+**GATE F — MEDIA RELIABILITY**
+
+Streaming, seeking, playback and cleanup are verified.
+
+**GATE G — SECURITY**
+
+Critical findings are corrected or explicitly documented with mitigations.
+
+**GATE H — RECOVERY**
+
+Relevant failure scenarios recover correctly.
+
+**GATE I — ARCHITECTURE**
+
+The implementation is maintainable, understandable and reproducible.
+
+**GATE J — REGRESSION**
+
+Relevant visual, functional and API regression checks pass.
+
+Do not claim a gate passed without evidence.
+
+# 23 — FINAL ENGINEERING REPORT
+
+Produce a comprehensive report containing:
+
+1. Executive summary.
+2. Initial repository condition.
+3. Previous implementation assessment.
+4. Verified previous improvements.
+5. Discovered regressions.
+6. Critical bottlenecks.
+7. Root-cause analysis.
+8. Architecture modifications.
+9. Frontend optimisations.
+10. Liquid Glass rendering findings.
+11. Backend improvements.
+12. Media pipeline improvements.
+13. Memory and resource findings.
+14. Security findings.
+15. Infrastructure findings.
+16. Dependency changes.
+17. Benchmark methodology.
+18. Before-and-after measurements.
+19. Load-testing results.
+20. Regression test results.
+21. Failure-recovery results.
+22. Remaining limitations.
+23. Rollback instructions.
+24. Final modified file inventory.
+
+Every reported improvement must be traceable to a change or measurement.
+
+Every untested claim must be labelled UNVERIFIED.
+
+Every incomplete test must be labelled INCOMPLETE.
+
+Every unsupported capability must be labelled NOT TESTED.
+
+# 24 — FINAL DIRECTIVE
+
+Do not optimise for impressive terminology.
+
+Do not optimise for arbitrary benchmark scores.
+
+Do not optimise for theoretical unlimited concurrency.
+
+Do not optimise by deleting product features.
+
+Do not optimise by weakening security.
+
+Do not optimise by introducing unnecessary complexity.
+
+Optimise the real application, on real execution paths, against measurable bottlenecks.
+
+Think beyond individual files.
+
+Think beyond individual components.
+
+Think beyond individual requests.
+
+Think about how the entire system behaves under simultaneous execution, prolonged operation, resource pressure, failure and recovery.
+
+Challenge every significant engineering assumption.
+
+Measure every meaningful improvement.
+
+Preserve every existing product capability.
+
+Correct the underlying problems rather than hiding their symptoms.
+
+The final objective is a substantially more responsive, efficient, stable, secure, maintainable and scalable NEXORA implementation.
+
+**THE PRODUCT MUST REMAIN NEXORA. THE ENGINEERING MUST BECOME SIGNIFICANTLY BETTER.**
+
+**NO FABRICATED RESULTS. NO UNVERIFIED SUCCESS CLAIMS. NO UNJUSTIFIED REGRESSIONS. NO DESTRUCTIVE SHORTCUTS.**
+
+EXECUTE THE COMPLETE ENGINEERING OPERATION.

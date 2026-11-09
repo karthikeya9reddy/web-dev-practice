@@ -1,0 +1,394 @@
+# 11A — NEXORA LIVE AI SUBTITLE INTELLIGENCE ENGINE
+
+## MISSION: BUILD AN ORIGINAL, LOW-LATENCY, REAL-TIME AI SUBTITLE SYSTEM
+
+This is a major new product capability.
+
+Design, engineer and integrate an original NEXORA Live AI Subtitle Engine into the existing media architecture.
+
+This must not be a superficial subtitle overlay or a conventional external subtitle-file reader.
+
+The objective is to build an AI-powered system capable of listening to currently playing media, understanding spoken audio, generating accurate timestamped subtitles and displaying them with the lowest practically achievable latency.
+
+The feature must work seamlessly in BOTH:
+
+1. The main expanded video player.
+2. The floating/minimised mini-player.
+
+Both player states must share the same underlying subtitle session.
+
+## 11A.1 — ORIGINAL AI ENGINEERING
+
+Build a NEXORA-owned transcription architecture.
+
+Investigate the feasibility of:
+
+- Self-hosted automatic speech recognition.
+- Custom inference pipelines.
+- Fine-tuned speech recognition models.
+- Optimised Whisper-family or equivalent ASR architectures.
+- Quantised inference.
+- GPU acceleration where available.
+- CPU fallback.
+- Streaming inference.
+- Incremental transcription.
+- Voice activity detection.
+- Audio segmentation.
+- Context-aware transcription.
+- Punctuation restoration.
+- Timestamp alignment.
+
+The system must have NEXORA-specific engineering, configuration, integration and optimisation.
+
+Do not simply connect an external transcription API and call it a self-created AI.
+
+Prefer an independently controlled, self-hosted architecture.
+
+You may use established open-source models as foundations, but clearly distinguish original NEXORA engineering from third-party model capabilities and licences.
+
+If training or fine-tuning is technically feasible, evaluate it separately.
+
+Do not pretend that a foundation model was trained from scratch when it was not.
+
+## 11A.2 — EXTREME LOW-LATENCY TRANSCRIPTION
+
+Latency is one of the most important objectives.
+
+Investigate the complete pipeline:
+
+Audio Capture → Audio Processing → Voice Detection → Streaming Inference → Text Decoding → Timestamp Alignment → Subtitle Delivery → Browser Rendering.
+
+Minimise delay at every stage.
+
+Investigate:
+
+- Audio chunk duration.
+- Chunk overlap.
+- Streaming inference.
+- Partial transcription.
+- Incremental decoding.
+- Model initialisation.
+- Model warm-up.
+- Audio buffering.
+- Network transport.
+- WebSocket communication.
+- Backend scheduling.
+- GPU inference queues.
+- CPU contention.
+- Subtitle rendering.
+
+Use partial hypotheses where appropriate.
+
+Distinguish provisional text from confirmed transcription.
+
+Prevent unstable partial results from causing excessive subtitle flickering.
+
+Implement intelligent subtitle finalisation.
+
+Do not introduce artificial delays merely to make text appear more stable.
+
+Establish measurable latency targets after hardware profiling.
+
+Report:
+
+- Audio capture latency.
+- Audio processing latency.
+- Inference latency.
+- Text stabilisation latency.
+- Delivery latency.
+- Audio-to-visible-subtitle latency.
+
+Measure median, P95 and P99 latency.
+
+Optimise for the lowest practical latency without sacrificing intelligibility and accuracy.
+
+Never claim zero latency or promise performance unsupported by measurements.
+
+## 11A.3 — MAIN PLAYER INTEGRATION
+
+Integrate Live AI Subtitles directly into the existing expanded player.
+
+Preserve the original player design.
+
+The new feature must:
+
+- Display generated subtitles over the video.
+- Maintain accurate timing.
+- Synchronise with the actual playback position.
+- Support play and pause.
+- Handle seeking.
+- Handle playback-speed changes.
+- Handle buffering.
+- Handle playback interruptions.
+- Handle video transitions.
+- Recover from temporary transcription failures.
+
+The subtitle rendering must not interfere with existing player controls.
+
+Preserve the existing Liquid Glass visual identity.
+
+The feature must not introduce unnecessary layout shifts, rendering bottlenecks or interaction latency.
+
+## 11A.4 — MINI-PLAYER CONTINUITY
+
+This is a mandatory requirement.
+
+Live AI Subtitles must work inside NEXORA's existing mini-player.
+
+When a user minimises the expanded player:
+
+- The existing transcription session must continue.
+- The subtitle stream must not restart unnecessarily.
+- Existing transcription context must be preserved.
+- Subtitle timestamps must remain aligned with playback.
+- The same subtitle engine must serve both player states.
+- No duplicate inference session should be created.
+
+When the player expands again, subtitle continuity must remain intact.
+
+Investigate player lifecycle ownership and session management carefully.
+
+Do not create separate transcription pipelines for the main player and mini-player.
+
+## 11A.5 — AUDIO CAPTURE ARCHITECTURE
+
+Determine the safest and most efficient method of obtaining audio from the currently playing media.
+
+Investigate:
+
+- Browser media capture.
+- MediaElement captureStream capabilities.
+- AudioWorklet.
+- Web Audio API.
+- Server-side FFmpeg audio extraction.
+- Streaming audio transport.
+- Existing media delivery architecture.
+
+Account for browser compatibility, CORS restrictions, media origin policies and DRM restrictions.
+
+Do not bypass DRM or browser security controls.
+
+Avoid unnecessary decoding of the same media more than once.
+
+Do not interfere with the original audio output.
+
+Prevent feedback loops and duplicate audio processing.
+
+Select the architecture based on measured latency, resource consumption, reliability and deployment constraints.
+
+## 11A.6 — SUBTITLE ACCURACY AND INTELLIGENCE
+
+Investigate:
+
+- Voice activity detection.
+- Speech segmentation.
+- Word-level timestamps where supported.
+- Sentence reconstruction.
+- Punctuation.
+- Speaker changes where feasible.
+- Background noise.
+- Music interference.
+- Overlapping dialogue.
+- Accents.
+- Multilingual speech.
+- Names and uncommon terminology.
+- Audio discontinuities.
+
+Prevent duplicate words and repeated subtitle segments.
+
+Prevent missing dialogue between audio chunks.
+
+Maintain transcription context across segment boundaries.
+
+Use confidence-aware finalisation where supported.
+
+Do not display fabricated dialogue when the model is uncertain.
+
+## 11A.7 — SUBTITLE SESSION ARCHITECTURE
+
+Implement a robust shared session manager.
+
+A subtitle session must have:
+
+- Unique session identity.
+- Current media identity.
+- Playback timestamp tracking.
+- Audio processing state.
+- Transcription state.
+- Partial transcription buffer.
+- Confirmed subtitle segments.
+- Connection state.
+- Cancellation handling.
+- Resource cleanup.
+
+Handle:
+
+- Pause and resume.
+- Seeking forwards.
+- Seeking backwards.
+- Switching media.
+- Mini-player transitions.
+- Expanded player transitions.
+- Browser backgrounding.
+- Network disconnections.
+- Backend restarts.
+- Failed inference requests.
+
+Prevent stale transcription from an earlier media segment appearing over a newer segment.
+
+Use sequence numbers, timestamps and cancellation mechanisms where appropriate.
+
+## 11A.8 — SUBTITLE RENDERING PERFORMANCE
+
+Treat subtitle rendering as a latency-sensitive browser subsystem.
+
+Investigate:
+
+- DOM update frequency.
+- Text layout.
+- Font rendering.
+- Overlay compositing.
+- Animation.
+- Subtitle segment retention.
+- Memory usage.
+- Repeated state updates.
+
+Avoid unnecessary DOM reconstruction.
+
+Avoid excessive React or component rerenders if applicable.
+
+Update only the necessary subtitle content.
+
+Preserve readability and the original visual design.
+
+Subtitle rendering must remain smooth during scrolling, playback, seeking and player transitions.
+
+## 11A.9 — RESOURCE AND CONCURRENCY MANAGEMENT
+
+Live transcription must not destabilise NEXORA.
+
+Investigate the resource cost of simultaneous transcription sessions.
+
+Implement appropriate:
+
+- Bounded inference concurrency.
+- Audio queue limits.
+- Backpressure.
+- Request cancellation.
+- Session cleanup.
+- Model lifecycle management.
+- CPU/GPU scheduling.
+- Memory limits.
+- Idle resource release.
+
+Ensure transcription does not starve:
+
+- Video streaming.
+- Playback.
+- Navigation.
+- Search.
+- Main-thread interactions.
+- Other users' requests.
+
+Test multiple simultaneous live transcription sessions.
+
+Measure resource consumption under realistic workloads.
+
+Provide graceful degradation when inference capacity is exhausted.
+
+Never silently consume unlimited memory or queue unlimited audio.
+
+## 11A.10 — NETWORK AND PRIVACY
+
+Investigate the security implications of transmitting audio.
+
+Prefer processing within infrastructure controlled by NEXORA.
+
+Do not transmit media audio to third-party services without explicit architectural approval.
+
+Do not permanently store captured audio by default.
+
+Avoid retaining raw audio unnecessarily.
+
+Protect transcription transport.
+
+Validate incoming messages and session ownership.
+
+Ensure temporary audio buffers are released.
+
+Preserve the existing no-authentication product model without introducing new access requirements.
+
+Clearly document any security limitations created by that model.
+
+## 11A.11 — FAILURE HANDLING
+
+Test:
+
+- Model unavailable.
+- GPU unavailable.
+- CPU fallback.
+- Network interruption.
+- WebSocket disconnection.
+- Empty audio.
+- Invalid audio.
+- Unsupported codecs.
+- No speech detected.
+- Very long silence.
+- Background music.
+- Overlapping speech.
+- Inference timeout.
+- Queue saturation.
+- Media switching.
+- Repeated seeking.
+
+Playback must continue even when live transcription fails.
+
+Transcription failure must never crash the player.
+
+Implement recoverable session states and controlled retries.
+
+## 11A.12 — BENCHMARKING AND ACCEPTANCE
+
+Establish a dedicated Live Subtitle benchmark suite.
+
+Measure:
+
+- Time to first subtitle.
+- Audio-to-text latency.
+- Median latency.
+- P95 latency.
+- P99 latency.
+- Word error rate.
+- Character error rate.
+- Subtitle timestamp accuracy.
+- Missing segment frequency.
+- Duplicate segment frequency.
+- CPU consumption.
+- GPU consumption.
+- Memory consumption.
+- Network overhead.
+- Concurrent session capacity.
+
+Test different speech rates, audio conditions, languages and hardware configurations.
+
+Compare provisional and final transcription accuracy.
+
+Test both the main player and mini-player.
+
+Verify that transitioning between player states does not restart transcription or introduce duplicate sessions.
+
+Do not declare this feature complete until its core functionality, performance, accuracy, resource management and regression tests have been verified.
+
+## 11A.13 — FINAL FEATURE REQUIREMENT
+
+Deliver a fully integrated NEXORA Live AI Subtitle Engine.
+
+It must be a genuine real-time transcription capability, not a simulated subtitle animation.
+
+The main player and mini-player must share one continuous transcription experience.
+
+The objective is extremely responsive, accurate, synchronised live subtitles with minimal practical latency.
+
+Preserve all existing NEXORA functionality and media behaviour.
+
+This is a new capability, not a replacement for existing subtitle functionality.

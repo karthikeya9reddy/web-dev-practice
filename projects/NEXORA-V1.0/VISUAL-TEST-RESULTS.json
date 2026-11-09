@@ -1,0 +1,37 @@
+{
+  "release": "1.0.7",
+  "test_command": "npm run check",
+  "automated_tests": 43,
+  "passed": 43,
+  "failed": 0,
+  "node_syntax_checks": [
+    "server.js",
+    "script.js"
+  ],
+  "css_postcss": {
+    "rules": 1234,
+    "declarations": 4036,
+    "parse_errors": 0
+  },
+  "runtime_ambience_simulation": {
+    "passed": true,
+    "draw_source": "existing hero preview video",
+    "dual_layer_handoff": true,
+    "palette_sampling": true,
+    "callback_cleanup": true,
+    "visible_frame_preserved_on_stop": true
+  },
+  "functionality_freeze_comparison": {
+    "server_behavior_unchanged_after_release_label_normalization": true,
+    "script_logic_unchanged_outside_ambience_implementation": true,
+    "html_structure_unchanged_outside_decorative_canvas_layers": true,
+    "package_lock_dependency_graph_unchanged": true
+  },
+  "actual_target_device_120hz_trace": false,
+  "live_express_start_test_in_build_environment": false,
+  "chromium_smoke_test": {
+    "attempted": true,
+    "result": "blocked_by_execution_environment_localhost_policy",
+    "live_rendering_verified": false
+  }
+}

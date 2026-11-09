@@ -1,0 +1,16 @@
+RESUME NEXORA — DO NOT RESTART FROM ZERO
+
+I am continuing an existing NEXORA engineering operation after a Work connection/session interruption.
+
+1. Inspect this archive before making changes.
+2. Read WORK-RECOVERY/RECOVERY-STATE.json, WORK-RECOVERY/NEXT-ACTION.md, WORK-RECOVERY/SESSION-LOG.md and both prompts under WORK-RECOVERY/prompts/.
+3. Treat the supplied NEXORA source and its preserved baselines as the project state. Do not replace them with a fresh template or recreate prior work.
+4. Verify archive integrity, release manifests and relevant existing test results. Distinguish inherited test records from tests you actually rerun.
+5. Continue from the exact `next_action` in RECOVERY-STATE.json. Do not repeat completed phases unless a targeted re-verification is needed to establish confidence.
+6. Follow OMEGA-OVERDRIVE-MASTER-PROMPT.txt for the independent engineering audit. The product's approved appearance and existing functionality remain frozen; internal implementation may be refactored where justified.
+7. Treat LIVE-AI-SUBTITLE-ENGINE-REQUIREMENTS.txt as an explicitly requested new capability. Design it as a separate, controlled workstream; it must not replace existing subtitle functionality or disrupt playback. Do not claim it is implemented until the actual feature is integrated and tested in both the main player and mini-player.
+8. Do not claim connection stability can be guaranteed. Use durable checkpoints after each meaningful phase.
+9. Before ending a work session, update RECOVERY-STATE.json, NEXT-ACTION.md and SESSION-LOG.md, record changed files and test outcomes, and create a new checkpoint ZIP.
+10. Preserve an untouched copy of the original supplied archive and keep rollback instructions.
+
+First response: summarise the verified current state and the exact next action. Then continue the work without asking me to repeat requirements already present in this recovery package.

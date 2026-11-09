@@ -1,0 +1,374 @@
+
+> nexora-media-server@1.1.0 check
+> node --check server.js && node --check script.js && node --test tests/*.test.js
+
+TAP version 13
+# Subtest: document exposes one dynamic page H1 and section-level H2 headings
+ok 1 - document exposes one dynamic page H1 and section-level H2 headings
+  ---
+  duration_ms: 3.135609
+  type: 'test'
+  ...
+# Subtest: playback setting toggles expose accessible names and pressed state
+ok 2 - playback setting toggles expose accessible names and pressed state
+  ---
+  duration_ms: 0.482107
+  type: 'test'
+  ...
+# Subtest: media cards use independent native buttons instead of nested interactive roles
+ok 3 - media cards use independent native buttons instead of nested interactive roles
+  ---
+  duration_ms: 0.68183
+  type: 'test'
+  ...
+# Subtest: library page has separate loading and offline/retry states
+ok 4 - library page has separate loading and offline/retry states
+  ---
+  duration_ms: 0.442438
+  type: 'test'
+  ...
+# Subtest: subtitle discovery waits until selected video metadata is ready
+ok 5 - subtitle discovery waits until selected video metadata is ready
+  ---
+  duration_ms: 0.375975
+  type: 'test'
+  ...
+# Subtest: keyboard focus is visible without relying only on :has
+ok 6 - keyboard focus is visible without relying only on :has
+  ---
+  duration_ms: 0.843266
+  type: 'test'
+  ...
+# Subtest: release contains no authentication feature and no custom text selection colour
+ok 7 - release contains no authentication feature and no custom text selection colour
+  ---
+  duration_ms: 2.17999
+  type: 'test'
+  ...
+# Subtest: path containment distinguishes parent traversal from names beginning with dots
+ok 8 - path containment distinguishes parent traversal from names beginning with dots
+  ---
+  duration_ms: 1.485353
+  type: 'test'
+  ...
+# Subtest: media resolver rejects traversal, absolute paths, empty segments and NUL
+ok 9 - media resolver rejects traversal, absolute paths, empty segments and NUL
+  ---
+  duration_ms: 0.915143
+  type: 'test'
+  ...
+# Subtest: media verifier accepts a regular supported file and rejects unsupported files and symlinks
+ok 10 - media verifier accepts a regular supported file and rejects unsupported files and symlinks
+  ---
+  duration_ms: 42.00583
+  type: 'test'
+  ...
+# Subtest: byte-range parser supports normal, open-ended and suffix ranges
+ok 11 - byte-range parser supports normal, open-ended and suffix ranges
+  ---
+  duration_ms: 2.013988
+  type: 'test'
+  ...
+# Subtest: byte-range parser rejects malformed and unsatisfiable ranges
+ok 12 - byte-range parser rejects malformed and unsatisfiable ranges
+  ---
+  duration_ms: 0.652462
+  type: 'test'
+  ...
+# Subtest: mobile fullscreen stage is pinned to the dynamic viewport and cannot crop video
+ok 13 - mobile fullscreen stage is pinned to the dynamic viewport and cannot crop video
+  ---
+  duration_ms: 1.398015
+  type: 'test'
+  ...
+# Subtest: fullscreen requests hide browser chrome where supported and request landscape on touch phones
+ok 14 - fullscreen requests hide browser chrome where supported and request landscape on touch phones
+  ---
+  duration_ms: 0.538532
+  type: 'test'
+  ...
+# Subtest: wrapped mobile navigation indicator tracks both axes and the selected item height
+ok 15 - wrapped mobile navigation indicator tracks both axes and the selected item height
+  ---
+  duration_ms: 0.740636
+  type: 'test'
+  ...
+# Subtest: ambience uses temporal frame blending and an adaptive decoded-frame cadence
+ok 16 - ambience uses temporal frame blending and an adaptive decoded-frame cadence
+  ---
+  duration_ms: 0.192703
+  type: 'test'
+  ...
+# Subtest: God Mode backend hardening preserves the established player and access model
+ok 17 - God Mode backend hardening preserves the established player and access model
+  ---
+  duration_ms: 0.625004
+  type: 'test'
+  ...
+# Subtest: live preview frames drive a dual-layer ambience handoff
+ok 18 - live preview frames drive a dual-layer ambience handoff
+  ---
+  duration_ms: 3.455631
+  type: 'test'
+  ...
+# Subtest: live ambience is sampled at a bounded rate with a smoothed vivid palette
+ok 19 - live ambience is sampled at a bounded rate with a smoothed vivid palette
+  ---
+  duration_ms: 1.120025
+  type: 'test'
+  ...
+# Subtest: ambience frame callbacks and timers are cancelled without clearing the last rendered frame
+ok 20 - ambience frame callbacks and timers are cancelled without clearing the last rendered frame
+  ---
+  duration_ms: 0.563697
+  type: 'test'
+  ...
+# Subtest: live ambience renderer samples the current hero video and hands off only after drawing
+ok 21 - live ambience renderer samples the current hero video and hands off only after drawing
+  ---
+  duration_ms: 6.35101
+  type: 'test'
+  ...
+# Subtest: card hover uses its own decoder and does not stop the hero/global preview
+ok 22 - card hover uses its own decoder and does not stop the hero/global preview
+  ---
+  duration_ms: 1.193647
+  type: 'test'
+  ...
+# Subtest: card hover previews remain enabled while the player is minimized
+ok 23 - card hover previews remain enabled while the player is minimized
+  ---
+  duration_ms: 0.27438
+  type: 'test'
+  ...
+# Subtest: hero progression is not held by an active card hover
+ok 24 - hero progression is not held by an active card hover
+  ---
+  duration_ms: 0.607241
+  type: 'test'
+  ...
+# Subtest: preview timing requests reverse typing before the clip ends
+ok 25 - preview timing requests reverse typing before the clip ends
+  ---
+  duration_ms: 0.69274
+  type: 'test'
+  ...
+# Subtest: reverse typing does not pause or reset the active hero video
+ok 26 - reverse typing does not pause or reset the active hero video
+  ---
+  duration_ms: 1.130497
+  type: 'test'
+  ...
+# Subtest: hero does not advance until both the outgoing clip and reverse typing finish
+ok 27 - hero does not advance until both the outgoing clip and reverse typing finish
+  ---
+  duration_ms: 3.167977
+  type: 'test'
+  ...
+# Subtest: title exit is idempotent and bypasses the post-title hold when needed
+ok 28 - title exit is idempotent and bypasses the post-title hold when needed
+  ---
+  duration_ms: 0.588469
+  type: 'test'
+  ...
+# Subtest: title erasure marks only title completion and no longer advances immediately
+ok 29 - title erasure marks only title completion and no longer advances immediately
+  ---
+  duration_ms: 0.214422
+  type: 'test'
+  ...
+# Subtest: outgoing hero frame remains as a bridge until the incoming preview plays
+ok 30 - outgoing hero frame remains as a bridge until the incoming preview plays
+  ---
+  duration_ms: 0.382581
+  type: 'test'
+  ...
+# Subtest: Discover shelf and card fixes are integrated into component styles, not a release-tail patch
+ok 31 - Discover shelf and card fixes are integrated into component styles, not a release-tail patch
+  ---
+  duration_ms: 1.744157
+  type: 'test'
+  ...
+# Subtest: Continue Watching remains visible on Discover, including its empty state
+ok 32 - Continue Watching remains visible on Discover, including its empty state
+  ---
+  duration_ms: 0.548885
+  type: 'test'
+  ...
+# Subtest: active release markers match V1.1.0 across package, app and server metadata
+ok 33 - active release markers match V1.1.0 across package, app and server metadata
+  ---
+  duration_ms: 0.360318
+  type: 'test'
+  ...
+# Subtest: FFprobe limiter never exceeds its configured active process ceiling
+ok 34 - FFprobe limiter never exceeds its configured active process ceiling
+  ---
+  duration_ms: 34.845497
+  type: 'test'
+  ...
+# Subtest: FFprobe limiter rejects work when its bounded waiting queue is full
+ok 35 - FFprobe limiter rejects work when its bounded waiting queue is full
+  ---
+  duration_ms: 1.116326
+  type: 'test'
+  ...
+# Subtest: all direct FFprobe work paths are bounded by the probe semaphore
+ok 36 - all direct FFprobe work paths are bounded by the probe semaphore
+  ---
+  duration_ms: 0.328238
+  type: 'test'
+  ...
+# Subtest: large recursive library merges avoid argument-spread limits
+ok 37 - large recursive library merges avoid argument-spread limits
+  ---
+  duration_ms: 0.202086
+  type: 'test'
+  ...
+# Subtest: library JSON is serialized once per refreshed snapshot and reused for visitors
+ok 38 - library JSON is serialized once per refreshed snapshot and reused for visitors
+  ---
+  duration_ms: 0.292654
+  type: 'test'
+  ...
+# Subtest: media stream file handles are released when viewers disconnect
+ok 39 - media stream file handles are released when viewers disconnect
+  ---
+  duration_ms: 0.243967
+  type: 'test'
+  ...
+# Subtest: HEAD requests return media headers without opening or reading media files
+ok 40 - HEAD requests return media headers without opening or reading media files
+  ---
+  duration_ms: 0.208906
+  type: 'test'
+  ...
+# Subtest: runtime diagnostics are single-flight, cached and process-gated
+ok 41 - runtime diagnostics are single-flight, cached and process-gated
+  ---
+  duration_ms: 0.150182
+  type: 'test'
+  ...
+# Subtest: large-library text search reuses the prebuilt per-file index while preserving folder terms
+ok 42 - large-library text search reuses the prebuilt per-file index while preserving folder terms
+  ---
+  duration_ms: 1.341728
+  type: 'test'
+  ...
+# Subtest: release metadata and dependency graph retain the same direct dependency
+ok 43 - release metadata and dependency graph retain the same direct dependency
+  ---
+  duration_ms: 0.384978
+  type: 'test'
+  ...
+# Subtest: poster grid creates at most 32 cards per main-thread insertion batch
+ok 44 - poster grid creates at most 32 cards per main-thread insertion batch
+  ---
+  duration_ms: 4.797781
+  type: 'test'
+  ...
+# Subtest: poster cards use content visibility with an intrinsic placeholder size
+ok 45 - poster cards use content visibility with an intrinsic placeholder size
+  ---
+  duration_ms: 1.346678
+  type: 'test'
+  ...
+# Subtest: all media-consuming API routes verify and then use the canonical media path
+ok 46 - all media-consuming API routes verify and then use the canonical media path
+  ---
+  duration_ms: 2.638691
+  type: 'test'
+  ...
+# Subtest: media path and scanner checks use real paths, lstat and strict root containment
+ok 47 - media path and scanner checks use real paths, lstat and strict root containment
+  ---
+  duration_ms: 0.227142
+  type: 'test'
+  ...
+# Subtest: subtitle sidecars are size-limited and client errors do not expose raw internals
+ok 48 - subtitle sidecars are size-limited and client errors do not expose raw internals
+  ---
+  duration_ms: 0.504909
+  type: 'test'
+  ...
+# Subtest: all invalid byte-range requests return an unsatisfied Content-Range header
+ok 49 - all invalid byte-range requests return an unsatisfied Content-Range header
+  ---
+  duration_ms: 0.185134
+  type: 'test'
+  ...
+# Subtest: FFmpeg work stays off a shell and is protected by bounded active and queued work
+ok 50 - FFmpeg work stays off a shell and is protected by bounded active and queued work
+  ---
+  duration_ms: 0.185498
+  type: 'test'
+  ...
+# Subtest: NEXORA has no built-in sign-in, credentials, or HTTP authentication challenge
+ok 51 - NEXORA has no built-in sign-in, credentials, or HTTP authentication challenge
+  ---
+  duration_ms: 1.190281
+  type: 'test'
+  ...
+# Subtest: visible interface identity and feature code are retained
+ok 52 - visible interface identity and feature code are retained
+  ---
+  duration_ms: 0.311802
+  type: 'test'
+  ...
+# Subtest: frequent card interactions use short transform-based transitions
+ok 53 - frequent card interactions use short transform-based transitions
+  ---
+  duration_ms: 1.912677
+  type: 'test'
+  ...
+# Subtest: large glass content surfaces use restrained backdrop diffusion and translucent fills
+ok 54 - large glass content surfaces use restrained backdrop diffusion and translucent fills
+  ---
+  duration_ms: 1.097148
+  type: 'test'
+  ...
+# Subtest: clear glass material rules are integrated into the main component styles
+ok 55 - clear glass material rules are integrated into the main component styles
+  ---
+  duration_ms: 1.923454
+  type: 'test'
+  ...
+# Subtest: ambience and scroll optimisation is integrated with existing rules
+ok 56 - ambience and scroll optimisation is integrated with existing rules
+  ---
+  duration_ms: 1.106908
+  type: 'test'
+  ...
+# Subtest: reduced-motion preference removes nonessential animation and transitions
+ok 57 - reduced-motion preference removes nonessential animation and transitions
+  ---
+  duration_ms: 2.472938
+  type: 'test'
+  ...
+# Subtest: reduced-transparency preference removes backdrop filters from major panels
+ok 58 - reduced-transparency preference removes backdrop filters from major panels
+  ---
+  duration_ms: 0.306176
+  type: 'test'
+  ...
+# Subtest: visual stylesheet contains no duplicated importance tokens
+ok 59 - visual stylesheet contains no duplicated importance tokens
+  ---
+  duration_ms: 3.41258
+  type: 'test'
+  ...
+# Subtest: mobile glass remains translucent instead of falling back to opaque panels
+ok 60 - mobile glass remains translucent instead of falling back to opaque panels
+  ---
+  duration_ms: 0.593476
+  type: 'test'
+  ...
+1..60
+# tests 60
+# suites 0
+# pass 60
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 407.439311

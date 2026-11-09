@@ -1,0 +1,65 @@
+{
+  "project": "NEXORA",
+  "release": "V1.1.0-GOD-MODE-HARDENING",
+  "state_schema": 1,
+  "created_utc": "2026-11-09T14:00:00Z",
+  "source_archive": "NEXORA-V1.1.0-GOD-MODE-HARDENING(1).zip",
+  "source_archive_preserved": true,
+  "application_code_changed_by_recovery_packaging": false,
+  "current_status": "PARTIAL_ENGINEERING_HARDENING; RECOVERY_WORKFLOW_ADDED; OMEGA_AUDIT_AND_LIVE_AI_SUBTITLES_NOT_COMPLETE",
+  "preservation_constraints": [
+    "Keep the approved NEXORA visuals unchanged.",
+    "Preserve existing functionality, player behaviour, playback, APIs and access model.",
+    "Do not introduce authentication or sign-in.",
+    "Do not reintroduce custom text highlighting.",
+    "Internal code may be changed when justified and regression-tested."
+  ],
+  "inherited_release_evidence_not_retested_during_recovery_packaging": {
+    "node_tests": "60/60 passed according to V1.1.0 TEST-OUTPUT-FINAL.txt and RELEASE-VERIFICATION.json",
+    "chromium_audit": "latest completed run 6/6 according to included release evidence; earlier scroll variability is documented",
+    "cssom": "passed according to included release verification",
+    "release_manifest": "68/68 entries verified according to included release verification"
+  },
+  "known_unverified_or_incomplete": [
+    "npm ci and exact-lockfile dependency audit; prior environment reported npm registry DNS EAI_AGAIN",
+    "Live Express HTTP integration",
+    "FFmpeg/FFprobe route integration against the actual media library",
+    "Full application click/INP profiling on target hardware",
+    "Physical Android and low-end device validation",
+    "120 Hz frame pacing measurement",
+    "Real mixed concurrent browsing and media-streaming load test",
+    "Cloudflare Tunnel and production-origin resilience",
+    "Long-duration endurance and failure-injection tests",
+    "Live AI subtitle engine implementation and validation in both player states"
+  ],
+  "prompts_preserved": [
+    "WORK-RECOVERY/prompts/OMEGA-OVERDRIVE-MASTER-PROMPT.txt",
+    "WORK-RECOVERY/prompts/LIVE-AI-SUBTITLE-ENGINE-REQUIREMENTS.txt"
+  ],
+  "completed_in_this_recovery_packaging": [
+    "Inspected the uploaded V1.1.0 archive and existing audit records",
+    "Preserved the OMEGA OVERDRIVE master prompt",
+    "Preserved the Live AI Subtitle Engine requirements",
+    "Added durable recovery instructions and checkpoint utility",
+    "Added state, next-action and session-log records"
+  ],
+  "next_action": "Continue the OMEGA independent audit from the V1.1.0 source: verify the current files, install exact locked dependencies in a network-enabled environment, run live Express and media integration tests, then perform full UI profiling and realistic mixed-load tests. Track every phase in the recovery state. Keep Live AI Subtitle Engine as a separately tracked feature workstream and do not silently treat it as complete.",
+  "checkpoint_policy": "Create a timestamped, SHA-256-verified checkpoint after each meaningful phase and before risky refactors. Update RECOVERY-STATE.json, NEXT-ACTION.md and SESSION-LOG.md before ending the session.",
+  "source_archive_sha256": "fe04b10e175cfb933243d622fe552cef1f6167ef32ba02c148fc98df91ae72dc",
+  "verified_active_source_sha256": {
+    "server.js": "125a9406845d2aa06cac50db35a1386e63a22b33efaad83bbe641cfeb41f0d94",
+    "script.js": "2d46c030b8ea7100546bbd339231e78118951d2c7b36aacf029b7530e40892b2",
+    "index.html": "906f6b96c95df07d8378907e125c8326696b6ea7a4142a6f189849a36cb84ffa",
+    "style.css": "2367ea6020cabb82146268615828f51e53f3d2ff051399b52e336df410ef2ccb",
+    "package.json": "712d88ea559682d0a16abc054faa85990be8cf1c964c7ab593419c9d1cdc7d31",
+    "package-lock.json": "45ad91a5e736c8b2d0aa56fdaec434020facd8a79c438c138869fd05f5c1d37c"
+  },
+  "recovery_utility_verification": {
+    "utility": "scripts/nexora_checkpoint.py",
+    "python_compile": "passed",
+    "create_checkpoint_test": "passed",
+    "verify_checkpoint_test": "passed",
+    "test_archive_manifest_entries": 78,
+    "note": "A temporary test checkpoint was created, verified and removed. This validates the recovery utility, not the NEXORA application runtime."
+  }
+}

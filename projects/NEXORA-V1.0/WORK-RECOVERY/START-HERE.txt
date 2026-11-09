@@ -1,0 +1,10 @@
+NEXORA WORK RECOVERY — START HERE
+
+If a Work connection error or session interruption occurs:
+1. Re-upload the latest verified NEXORA recovery/checkpoint ZIP.
+2. Use RESUME-PROMPT.txt as your message.
+3. The next session must read RECOVERY-STATE.json, NEXT-ACTION.md and SESSION-LOG.md first.
+4. Continue from `next_action`; do not restart from zero.
+5. After the next meaningful phase, update the state and create another verified checkpoint using scripts/nexora_checkpoint.py.
+
+Important: this cannot prevent a platform/network error. It preserves the project and makes the work resumable.
