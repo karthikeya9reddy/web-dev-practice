@@ -1,0 +1,7 @@
+{
+  "status": "passed",
+  "parser": "Chromium CSSStyleSheet.replaceSync",
+  "top_level_rules": 944,
+  "total_rules_recursive": 1313,
+  "note": "CSS parsed successfully in headless Chromium. The stylesheet rules are unchanged from the V1.0.9 baseline; only its release comment differs."
+}
