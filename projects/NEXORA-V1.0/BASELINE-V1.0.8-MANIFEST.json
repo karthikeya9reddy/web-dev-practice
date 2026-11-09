@@ -1,0 +1,11 @@
+{
+  "baseline": "NEXORA V1.0.8",
+  "files": {
+    "index.html": "345921f7f0cecec3eaff49b547b8ff81d132a408b7b99836d76ae7989e72bd49",
+    "package-lock.json": "da419f0f8341116363a349aeeb3f8a4740f55b917eaef03d54317cb7a06f24ec",
+    "package.json": "671d8dbd9f527c83ecaeea6c38117dc249662671bc3d61b64a811b4d5f7e248e",
+    "script.js": "e5d19f50315f19cf2e5e5ce81437fc6390ee7d974c0e5ce852770a1093e95715",
+    "server.js": "d62014848c94c71bd9bd96ed9098490479e2f26e018a19f790405cc5f93ee152",
+    "style.css": "2e01d9c09601dcef379b12fd2e0f631b9f15d26e9c06e3a6c301c052ba01efc5"
+  }
+}
