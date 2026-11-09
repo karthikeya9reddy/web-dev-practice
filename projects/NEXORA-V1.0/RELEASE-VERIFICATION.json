@@ -1,0 +1,56 @@
+{
+  "release": "NEXORA V1.1.0 \u2014 God Mode targeted hardening",
+  "baseline": "NEXORA V1.0.9 (with V1.0.8 and V1.0 rollback snapshots retained)",
+  "syntax": {
+    "server_js": "passed",
+    "script_js": "passed"
+  },
+  "node_regression_tests": {
+    "total": 60,
+    "passed": 60,
+    "failed": 0,
+    "command": "npm run check"
+  },
+  "chromium_audit": {
+    "latest_completed_run_passed": 6,
+    "total_checks": 6,
+    "scroll_repeatability_note": "One earlier run failed only the synthetic scroll test with a 244 ms Long Task; one later run timed out; latest completed run passed 4/4 scroll trials."
+  },
+  "cssom_parse": {
+    "status": "passed",
+    "parser": "Chromium CSSStyleSheet.replaceSync",
+    "top_level_rules": 944,
+    "total_rules_recursive": 1313,
+    "note": "CSS parsed successfully in headless Chromium. The stylesheet rules are unchanged from the V1.0.9 baseline; only its release comment differs."
+  },
+  "baseline_integrity": {
+    "v1_0_8_files_verified": 6,
+    "v1_0_8_files_expected": 6,
+    "v1_0_9_snapshot_files": 6,
+    "v1_0_9_snapshot_manifest_created": true
+  },
+  "not_tested": [
+    "npm ci and exact-lockfile npm audit (registry DNS EAI_AGAIN)",
+    "Live Express HTTP integration (Express package unavailable in this execution environment)",
+    "Real Entertainment media-library scan and media pipeline",
+    "Real stream disconnect and HTTP HEAD integration against Express",
+    "Full-app click/INP profiling on target hardware",
+    "Physical Android/browser fullscreen validation",
+    "120 Hz performance measurement",
+    "Progressive concurrent browsing plus media-streaming load test",
+    "Cloudflare Tunnel and production origin resilience",
+    "Low-end device and long-duration endurance testing"
+  ],
+  "certification": "PARTIAL \u2014 targeted code hardening and local regression checks completed; not certified for bulk-user production capacity.",
+  "archive_smoke_test": {
+    "zip_integrity": "passed",
+    "fresh_extraction": "passed",
+    "release_manifest_entries": 68,
+    "release_manifest_verified": 68,
+    "fresh_extracted_node_tests": {
+      "passed": 60,
+      "total": 60,
+      "failed": 0
+    }
+  }
+}
